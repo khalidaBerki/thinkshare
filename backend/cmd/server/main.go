@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
-	"github.com/khalidaBerki/thinkshare/backend/internal/auth"
-	"github.com/khalidaBerki/thinkshare/backend/internal/user"
+	"backend/internal/auth"
+	"backend/internal/user"
 )
 
 func main() {
