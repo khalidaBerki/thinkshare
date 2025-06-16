@@ -13,14 +13,14 @@ var mockUser = User{
 	Email:     "haithem@eemi.com",
 }
 
-func GetUserByID(id int) (*User, error) {
+func GetUserByID(id uint) (*User, error) {
 	if id == mockUser.ID {
 		return &mockUser, nil
 	}
 	return nil, ErrUserNotFound
 }
 
-func UpdateUserProfile(id int, input UpdateUserInput) error {
+func UpdateUserProfile(id uint, input UpdateUserInput) error {
 	if id != mockUser.ID {
 		return ErrUserNotFound
 	}
