@@ -1,9 +1,9 @@
 package user
 
-func GetProfile(userID int) (*User, error) {
+func GetProfile(userID uint) (*User, error) {
 	return GetUserByID(userID)
 }
 
-func UpdateProfile(userID int, input UpdateUserInput) error {
+func UpdateProfile(userID uint, input UpdateUserInput) error {
 	return UpdateUserProfile(userID, input)
 }
