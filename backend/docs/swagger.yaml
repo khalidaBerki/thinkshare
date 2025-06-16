@@ -1,0 +1,62 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: 'API d''authentification pour ThinkShare : Google + formulaire'
+  title: ThinkShare Auth API
+  version: "1.0"
+paths:
+  /auth/{provider}:
+    get:
+      parameters:
+      - description: 'Nom du provider (ex: google)'
+        in: path
+        name: provider
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect vers le provider
+          schema:
+            type: string
+      summary: Lancer l'authentification OAuth
+      tags:
+      - Auth
+  /auth/{provider}/callback:
+    get:
+      parameters:
+      - description: Nom du provider
+        in: path
+        name: provider
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "302":
+          description: Redirect vers / en cas d'erreur
+          schema:
+            type: string
+      summary: Callback OAuth
+      tags:
+      - Auth
+  /logout:
+    get:
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect vers /
+          schema:
+            type: string
+      summary: Déconnexion utilisateur
+      tags:
+      - Auth
+swagger: "2.0"
