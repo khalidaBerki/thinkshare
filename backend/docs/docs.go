@@ -16,6 +16,98 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retourne les informations du profil de l'utilisateur connecté",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Récupérer le profil utilisateur",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/user.ProfileDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Met à jour les champs du profil (nom, bio, avatar)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Modifier le profil utilisateur",
+                "parameters": [
+                    {
+                        "description": "Champs modifiables du profil",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.UpdateUserInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/{provider}": {
             "get": {
                 "produces": [
@@ -24,11 +116,11 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Lancer l'authentification OAuth",
+                "summary": "Début de l'authentification Google OAuth",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Nom du provider (ex: google)",
+                        "description": "google",
                         "name": "provider",
                         "in": "path",
                         "required": true
@@ -36,7 +128,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "302": {
-                        "description": "Redirect vers le provider",
+                        "description": "Redirection vers Google",
                         "schema": {
                             "type": "string"
                         }
@@ -52,11 +144,11 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Callback OAuth",
+                "summary": "Callback OAuth Google",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Nom du provider",
+                        "description": "google",
                         "name": "provider",
                         "in": "path",
                         "required": true
@@ -66,14 +158,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "302": {
-                        "description": "Redirect vers / en cas d'erreur",
-                        "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/user.User"
                         }
                     }
                 }
@@ -97,18 +182,369 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/register": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Créer un compte avec name, firstname, username, email, password",
+                "parameters": [
+                    {
+                        "description": "Informations d'inscription",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.RegisterInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "auth.RegisterInput": {
+            "type": "object",
+            "required": [
+                "email",
+                "firstname",
+                "name",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "firstname": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "comment.Comment": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "postAccess": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/postaccess.PostAccess"
+                    }
+                },
+                "postID": {
+                    "type": "integer"
+                },
+                "userID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "like.Like": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "postID": {
+                    "type": "integer"
+                },
+                "userID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "media.Media": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "mediaType": {
+                    "type": "string"
+                },
+                "mediaURL": {
+                    "type": "string"
+                },
+                "postID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "message.Message": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "receiverID": {
+                    "type": "integer"
+                },
+                "senderID": {
+                    "type": "integer"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "post.Post": {
+            "type": "object",
+            "properties": {
+                "comments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/comment.Comment"
+                    }
+                },
+                "content": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "creatorID": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "likes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/like.Like"
+                    }
+                },
+                "media": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/media.Media"
+                    }
+                },
+                "postAccess": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/postaccess.PostAccess"
+                    }
+                },
+                "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "postaccess.PostAccess": {
+            "type": "object",
+            "properties": {
+                "commentID": {
+                    "description": "\u003c-- Ajoute ce champ",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "postID": {
+                    "type": "integer"
+                },
+                "userID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "subscription.Subscription": {
+            "type": "object",
+            "properties": {
+                "creatorID": {
+                    "type": "integer"
+                },
+                "endDate": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "isActive": {
+                    "type": "boolean"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "subscriberID": {
+                    "type": "integer"
+                },
+                "type": {
+                    "description": "monthly or one-time",
+                    "type": "string"
+                }
+            }
+        },
+        "user.ProfileDTO": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://cdn.thinkshare/avatar.jpg"
+                },
+                "bio": {
+                    "type": "string",
+                    "example": "Étudiant à l’EEMI et dev fullstack"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "Haithem Hammami"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "user.UpdateUserInput": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://cdn.thinkshare/avatar.jpg"
+                },
+                "bio": {
+                    "type": "string",
+                    "example": "Développeur Go, Next.js, passionné par l'éducation"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "Haithem Hammami"
+                }
+            }
+        },
+        "user.User": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://cdn.thinkshare/avatar.jpg"
+                },
+                "bio": {
+                    "type": "string",
+                    "example": "Étudiant à l’EEMI et dev fullstack"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T15:04:05Z"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "haithem@example.com"
+                },
+                "first_name": {
+                    "type": "string",
+                    "example": "Haithem"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "Haithem Hammami"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "messages_recv": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/message.Message"
+                    }
+                },
+                "messages_sent": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/message.Message"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Hammami"
+                },
+                "posts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/post.Post"
+                    }
+                },
+                "role": {
+                    "type": "string",
+                    "example": "user"
+                },
+                "subscriptions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/subscription.Subscription"
+                    }
+                },
+                "username": {
+                    "type": "string",
+                    "example": "haithemdev"
+                }
+            }
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "ThinkShare Auth API",
-	Description:      "API d'authentification pour ThinkShare : Google + formulaire",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 }
