@@ -1,35 +1,36 @@
-//Mock temporairement le repository
-
 package user
 
-import "fmt"
+import (
+	"backend/internal/db"
+	"errors"
+)
 
-var mockUser = User{
-	ID:        1,
-	Username:  "haithem95",
-	FullName:  "Haithem Hammami",
-	Bio:       "Développeur fullstack passionné.",
-	AvatarURL: "https://cdn.thinkshare/avatar.jpg",
-	Email:     "haithem@eemi.com",
-}
+var ErrUserNotFound = errors.New("utilisateur non trouvé")
 
 func GetUserByID(id uint) (*User, error) {
-	if id == mockUser.ID {
-		return &mockUser, nil
+	var user User
+	result := db.GormDB.First(&user, id)
+	if result.Error != nil {
+		return nil, ErrUserNotFound
 	}
-	return nil, ErrUserNotFound
+	return &user, nil
 }
 
 func UpdateUserProfile(id uint, input UpdateUserInput) error {
-	if id != mockUser.ID {
+	// Vérifie d'abord si l'utilisateur existe
+	var user User
+	result := db.GormDB.First(&user, id)
+	if result.Error != nil {
 		return ErrUserNotFound
 	}
 
-	mockUser.FullName = input.FullName
-	mockUser.Bio = input.Bio
-	mockUser.AvatarURL = input.AvatarURL
+	// Met à jour uniquement les champs autorisés
+	updates := map[string]interface{}{
+		"full_name":  input.FullName,
+		"bio":        input.Bio,
+		"avatar_url": input.AvatarURL,
+	}
 
-	return nil
+	result = db.GormDB.Model(&user).Updates(updates)
+	return result.Error
 }
-
-var ErrUserNotFound = fmt.Errorf("user not found")
