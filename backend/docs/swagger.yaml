@@ -1,15 +1,276 @@
-basePath: /
-host: localhost:8080
+definitions:
+  auth.RegisterInput:
+    properties:
+      email:
+        type: string
+      firstname:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - firstname
+    - name
+    - password
+    - username
+    type: object
+  comment.Comment:
+    properties:
+      content:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: integer
+      postAccess:
+        items:
+          $ref: '#/definitions/postaccess.PostAccess'
+        type: array
+      postID:
+        type: integer
+      userID:
+        type: integer
+    type: object
+  like.Like:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      postID:
+        type: integer
+      userID:
+        type: integer
+    type: object
+  media.Media:
+    properties:
+      id:
+        type: integer
+      mediaType:
+        type: string
+      mediaURL:
+        type: string
+      postID:
+        type: integer
+    type: object
+  message.Message:
+    properties:
+      content:
+        type: string
+      id:
+        type: integer
+      receiverID:
+        type: integer
+      senderID:
+        type: integer
+      timestamp:
+        type: string
+    type: object
+  post.Post:
+    properties:
+      comments:
+        items:
+          $ref: '#/definitions/comment.Comment'
+        type: array
+      content:
+        type: string
+      createdAt:
+        type: string
+      creatorID:
+        type: integer
+      id:
+        type: integer
+      likes:
+        items:
+          $ref: '#/definitions/like.Like'
+        type: array
+      media:
+        items:
+          $ref: '#/definitions/media.Media'
+        type: array
+      postAccess:
+        items:
+          $ref: '#/definitions/postaccess.PostAccess'
+        type: array
+      visibility:
+        type: string
+    type: object
+  postaccess.PostAccess:
+    properties:
+      commentID:
+        description: <-- Ajoute ce champ
+        type: integer
+      id:
+        type: integer
+      postID:
+        type: integer
+      userID:
+        type: integer
+    type: object
+  subscription.Subscription:
+    properties:
+      creatorID:
+        type: integer
+      endDate:
+        type: string
+      id:
+        type: integer
+      isActive:
+        type: boolean
+      startDate:
+        type: string
+      subscriberID:
+        type: integer
+      type:
+        description: monthly or one-time
+        type: string
+    type: object
+  user.ProfileDTO:
+    properties:
+      avatar_url:
+        example: https://cdn.thinkshare/avatar.jpg
+        type: string
+      bio:
+        example: Étudiant à l’EEMI et dev fullstack
+        type: string
+      full_name:
+        example: Haithem Hammami
+        type: string
+      id:
+        example: 1
+        type: integer
+    type: object
+  user.UpdateUserInput:
+    properties:
+      avatar_url:
+        example: https://cdn.thinkshare/avatar.jpg
+        type: string
+      bio:
+        example: Développeur Go, Next.js, passionné par l'éducation
+        type: string
+      full_name:
+        example: Haithem Hammami
+        type: string
+    type: object
+  user.User:
+    properties:
+      avatar_url:
+        example: https://cdn.thinkshare/avatar.jpg
+        type: string
+      bio:
+        example: Étudiant à l’EEMI et dev fullstack
+        type: string
+      created_at:
+        example: "2024-01-01T15:04:05Z"
+        type: string
+      email:
+        example: haithem@example.com
+        type: string
+      first_name:
+        example: Haithem
+        type: string
+      full_name:
+        example: Haithem Hammami
+        type: string
+      id:
+        example: 1
+        type: integer
+      messages_recv:
+        items:
+          $ref: '#/definitions/message.Message'
+        type: array
+      messages_sent:
+        items:
+          $ref: '#/definitions/message.Message'
+        type: array
+      name:
+        example: Hammami
+        type: string
+      posts:
+        items:
+          $ref: '#/definitions/post.Post'
+        type: array
+      role:
+        example: user
+        type: string
+      subscriptions:
+        items:
+          $ref: '#/definitions/subscription.Subscription'
+        type: array
+      username:
+        example: haithemdev
+        type: string
+    type: object
 info:
   contact: {}
-  description: 'API d''authentification pour ThinkShare : Google + formulaire'
-  title: ThinkShare Auth API
-  version: "1.0"
 paths:
+  /api/profile:
+    get:
+      description: Retourne les informations du profil de l'utilisateur connecté
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.ProfileDTO'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Récupérer le profil utilisateur
+      tags:
+      - user
+    put:
+      consumes:
+      - application/json
+      description: Met à jour les champs du profil (nom, bio, avatar)
+      parameters:
+      - description: Champs modifiables du profil
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.UpdateUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Modifier le profil utilisateur
+      tags:
+      - user
   /auth/{provider}:
     get:
       parameters:
-      - description: 'Nom du provider (ex: google)'
+      - description: google
         in: path
         name: provider
         required: true
@@ -18,16 +279,16 @@ paths:
       - application/json
       responses:
         "302":
-          description: Redirect vers le provider
+          description: Redirection vers Google
           schema:
             type: string
-      summary: Lancer l'authentification OAuth
+      summary: Début de l'authentification Google OAuth
       tags:
       - Auth
   /auth/{provider}/callback:
     get:
       parameters:
-      - description: Nom du provider
+      - description: google
         in: path
         name: provider
         required: true
@@ -38,13 +299,8 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
-        "302":
-          description: Redirect vers / en cas d'erreur
-          schema:
-            type: string
-      summary: Callback OAuth
+            $ref: '#/definitions/user.User'
+      summary: Callback OAuth Google
       tags:
       - Auth
   /logout:
@@ -57,6 +313,35 @@ paths:
           schema:
             type: string
       summary: Déconnexion utilisateur
+      tags:
+      - Auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Informations d'inscription
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Créer un compte avec name, firstname, username, email, password
       tags:
       - Auth
 swagger: "2.0"
