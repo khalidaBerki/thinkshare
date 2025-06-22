@@ -30,12 +30,13 @@ type UpdatePostInput struct {
 }
 
 type Post struct {
-	ID         uint       `gorm:"primaryKey"`
-	CreatorID  uint       `gorm:"not null"`
-	Content    string     `gorm:"type:text"`
-	Visibility Visibility `gorm:"type:varchar(10);default:'public'"`
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID           uint       `gorm:"primaryKey"`
+	CreatorID    uint       `gorm:"not null"`
+	Content      string     `gorm:"type:text"`
+	Visibility   Visibility `gorm:"type:varchar(10);default:'public'"`
+	DocumentType string     `gorm:"type:varchar(50)"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 
 	Media      []media.Media           `gorm:"foreignKey:PostID"`
 	Comments   []comment.Comment       `gorm:"foreignKey:PostID"`
@@ -45,9 +46,10 @@ type Post struct {
 
 // Pour afficher un post
 type PostDTO struct {
-	ID         uint      `json:"id"`
-	Content    string    `json:"content"`
-	Visibility string    `json:"visibility"`
-	CreatedAt  time.Time `json:"created_at"`
-	MediaURLs  []string  `json:"media_urls"`
+	ID           uint      `json:"id"`
+	Content      string    `json:"content"`
+	Visibility   string    `json:"visibility"`
+	DocumentType string    `json:"document_type,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	MediaURLs    []string  `json:"media_urls"`
 }
