@@ -2,29 +2,39 @@ package post
 
 import (
 	"backend/internal/db"
+	"backend/internal/media"
 	"errors"
 	"fmt"
+	_ "gorm.io/gorm"
+	_ "gorm.io/gorm/clause"
+	"log"
 	"os"
 )
 
+// Interface du repository post
 type Repository interface {
 	Create(post *Post) error
 	GetAll(page, pageSize int, visibility Visibility) ([]Post, error)
 	GetByID(id uint) (*Post, error)
 	Update(post *Post) error
 	Delete(id uint, userID uint) error
+	CountMediaByType(mediaType string) (int64, error)
 }
 
+// Implémentation du repository
 type repository struct{}
 
+// Créer un nouveau repository
 func NewRepository() Repository {
 	return &repository{}
 }
 
+// Créer un nouveau post
 func (r *repository) Create(post *Post) error {
 	return db.GormDB.Create(post).Error
 }
 
+// Récupérer tous les posts avec pagination et filtrage
 func (r *repository) GetAll(page, pageSize int, visibility Visibility) ([]Post, error) {
 	var posts []Post
 	offset := (page - 1) * pageSize
@@ -40,6 +50,7 @@ func (r *repository) GetAll(page, pageSize int, visibility Visibility) ([]Post, 
 	return posts, err
 }
 
+// Récupérer un post par son ID
 func (r *repository) GetByID(id uint) (*Post, error) {
 	var post Post
 	err := db.GormDB.Preload("Media").First(&post, id).Error
@@ -49,10 +60,20 @@ func (r *repository) GetByID(id uint) (*Post, error) {
 	return &post, nil
 }
 
+// Compter le nombre de médias par type
+func (r *repository) CountMediaByType(mediaType string) (int64, error) {
+	var count int64
+	query := db.GormDB.Model(&media.Media{}).Where("media_type = ?", mediaType)
+	result := query.Count(&count)
+	return count, result.Error
+}
+
+// Mettre à jour un post existant
 func (r *repository) Update(post *Post) error {
 	return db.GormDB.Save(post).Error
 }
 
+// Supprimer un post et ses médias associés
 func (r *repository) Delete(id uint, userID uint) error {
 	tx := db.GormDB.Begin()
 	defer func() {
@@ -61,12 +82,14 @@ func (r *repository) Delete(id uint, userID uint) error {
 		}
 	}()
 
+	// Récupérer le post avec ses médias
 	var post Post
 	if err := tx.Preload("Media").First(&post, id).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
+	// Vérifier que l'utilisateur est autorisé à supprimer le post
 	if post.CreatorID != userID {
 		tx.Rollback()
 		return errors.New("unauthorized")
@@ -74,7 +97,7 @@ func (r *repository) Delete(id uint, userID uint) error {
 
 	// 1. D'abord supprimer les entrées de médias dans la base de données
 	if len(post.Media) > 0 {
-		fmt.Printf("Suppression de %d médias pour le post ID %d\n", len(post.Media), post.ID)
+		log.Printf("🗑️ Suppression de %d médias pour le post ID %d", len(post.Media), post.ID)
 		if err := tx.Delete(&post.Media).Error; err != nil {
 			tx.Rollback()
 			return fmt.Errorf("échec de la suppression des médias en base: %v", err)
@@ -87,7 +110,7 @@ func (r *repository) Delete(id uint, userID uint) error {
 		err := os.Remove(m.MediaURL)
 		if err != nil && !os.IsNotExist(err) {
 			// Journaliser l'erreur mais continuer
-			fmt.Printf("Avertissement: Impossible de supprimer le fichier %s: %v\n", m.MediaURL, err)
+			log.Printf("⚠️ Impossible de supprimer le fichier %s: %v", m.MediaURL, err)
 		}
 	}
 
