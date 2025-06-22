@@ -24,10 +24,23 @@ func InitGoth() {
 	)
 }
 
+func ProviderMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		provider := c.Param("provider")
+		if provider != "" {
+			// Ajoute le provider à la query string pour gothic
+			q := c.Request.URL.Query()
+			q.Set("provider", provider)
+			c.Request.URL.RawQuery = q.Encode()
+		}
+		c.Next()
+	}
+}
+
 func RegisterRoutes(r *gin.Engine) {
 	r.POST("/register", Register)
-	r.GET("/auth/:provider", BeginAuthHandler)
-	r.GET("/auth/:provider/callback", CallbackHandler)
+	r.GET("/auth/:provider", ProviderMiddleware(), BeginAuthHandler)
+	r.GET("/auth/:provider/callback", ProviderMiddleware(), CallbackHandler)
 	r.GET("/logout", LogoutHandler)
 }
 
@@ -82,6 +95,11 @@ func Register(c *gin.Context) {
 // @Success 302 {string} string "Redirection vers Google"
 // @Router /auth/{provider} [get]
 func BeginAuthHandler(c *gin.Context) {
+	provider := c.Param("provider")
+	if provider != "google" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Provider not supported"})
+		return
+	}
 	gothic.BeginAuthHandler(c.Writer, c.Request)
 }
 
@@ -93,6 +111,11 @@ func BeginAuthHandler(c *gin.Context) {
 // @Success 200 {object} user.User
 // @Router /auth/{provider}/callback [get]
 func CallbackHandler(c *gin.Context) {
+	provider := c.Param("provider")
+	if provider != "google" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Provider not supported"})
+		return
+	}
 	gUser, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
 		c.Redirect(http.StatusTemporaryRedirect, "/")
@@ -106,14 +129,15 @@ func CallbackHandler(c *gin.Context) {
 		u = user.User{
 			Username:     gUser.NickName,
 			Email:        gUser.Email,
-			PasswordHash: "", // pas de mot de passe
+			PasswordHash: "",
 			Role:         "google",
 			CreatedAt:    time.Now(),
 		}
 		db.GormDB.Create(&u)
 	}
 
-	c.JSON(http.StatusOK, u)
+	// Redirige vers la documentation Swagger après authentification
+	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:8080/swagger/index.html#/")
 }
 
 // LogoutHandler godoc
