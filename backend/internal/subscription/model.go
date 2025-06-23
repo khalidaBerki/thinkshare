@@ -9,5 +9,5 @@ type Subscription struct {
 	StartDate    time.Time
 	EndDate      time.Time
 	IsActive     bool
-	Type         string // monthly or one-time
+	Type         string // "paid" ou "free"
 }

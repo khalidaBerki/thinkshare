@@ -142,8 +142,21 @@ definitions:
       subscriberID:
         type: integer
       type:
-        description: monthly or one-time
+        description: '"paid" ou "free"'
         type: string
+    type: object
+  subscription.SubscriptionInput:
+    properties:
+      creator_id:
+        type: integer
+      type:
+        enum:
+        - paid
+        - free
+        type: string
+    required:
+    - creator_id
+    - type
     type: object
   user.UpdateUserInput:
     properties:
@@ -247,6 +260,73 @@ paths:
       summary: Modifier le profil utilisateur
       tags:
       - user
+  /api/subscribe:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Données d’abonnement
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/subscription.SubscriptionInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/subscription.Subscription'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: S’abonner à un créateur (payant ou gratuit)
+      tags:
+      - Subscription
+  /api/unsubscribe:
+    post:
+      parameters:
+      - description: ID du créateur
+        in: query
+        name: creator_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Se désabonner d’un créateur
+      tags:
+      - Subscription
   /auth/{provider}:
     get:
       parameters:
