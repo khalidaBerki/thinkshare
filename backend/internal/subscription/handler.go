@@ -141,3 +141,104 @@ func UnsubscribeHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Désabonnement réussi"})
 }
+
+// GetFollowersHandler godoc
+// @Summary Récupère tous les followers de l'utilisateur connecté
+// @Tags Subscription
+// @Security BearerAuth
+// @Success 200 {array} uint
+// @Router /api/followers [get]
+func GetFollowersHandler(c *gin.Context) {
+	userID := c.GetInt("user_id")
+
+	var followers []Subscription
+	if err := db.GormDB.Where("creator_id = ? AND is_active = ?", userID, true).Find(&followers).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Erreur lors de la récupération"})
+		return
+	}
+
+	// On retourne juste les IDs des abonnés
+	var followerIDs []uint
+	for _, sub := range followers {
+		followerIDs = append(followerIDs, sub.SubscriberID)
+	}
+
+	c.JSON(200, gin.H{"followers": followerIDs})
+}
+
+// GetFollowersByUserHandler godoc
+// @Summary Récupère tous les followers d’un utilisateur par son ID, avec tag paid/free
+// @Tags Subscription
+// @Security BearerAuth
+// @Param id path int true "ID du créateur"
+// @Success 200 {object} map[string][]map[string]interface{}
+// @Router /api/followers/{id} [get]
+func GetFollowersByUserHandler(c *gin.Context) {
+	creatorID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || creatorID <= 0 {
+		c.JSON(400, gin.H{"error": "ID invalide"})
+		return
+	}
+
+	var followers []Subscription
+	if err := db.GormDB.Where("creator_id = ? AND is_active = ?", creatorID, true).Find(&followers).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Erreur lors de la récupération"})
+		return
+	}
+
+	var paidFollowers []map[string]interface{}
+	var freeFollowers []map[string]interface{}
+
+	for _, sub := range followers {
+		entry := map[string]interface{}{
+			"subscriber_id": sub.SubscriberID,
+			"type":          sub.Type,
+		}
+		if sub.Type == "paid" {
+			paidFollowers = append(paidFollowers, entry)
+		} else {
+			freeFollowers = append(freeFollowers, entry)
+		}
+	}
+
+	c.JSON(200, gin.H{
+		"paid": paidFollowers,
+		"free": freeFollowers,
+	})
+}
+
+// GetMySubscriptionsHandler godoc
+// @Summary Récupère la liste des utilisateurs suivis par l'utilisateur connecté (avec tag paid/free)
+// @Tags Subscription
+// @Security BearerAuth
+// @Success 200 {object} map[string][]map[string]interface{}
+// @Router /api/subscriptions [get]
+func GetMySubscriptionsHandler(c *gin.Context) {
+	userID := c.GetInt("user_id")
+
+	var subs []Subscription
+	if err := db.GormDB.Where("subscriber_id = ? AND is_active = ?", userID, true).Find(&subs).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Erreur lors de la récupération"})
+		return
+	}
+
+	var paid []map[string]interface{}
+	var free []map[string]interface{}
+
+	for _, sub := range subs {
+		entry := map[string]interface{}{
+			"creator_id": sub.CreatorID,
+			"type":       sub.Type,
+		}
+		if sub.Type == "paid" {
+			paid = append(paid, entry)
+		} else {
+			free = append(free, entry)
+		}
+	}
+
+	c.JSON(200, gin.H{
+		"paid": paid,
+		"free": free,
+	})
+}

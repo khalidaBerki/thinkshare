@@ -94,6 +94,8 @@ func main() {
 		api.PUT("/profile", user.UpdateProfileHandler)
 		api.POST("/subscribe", auth.AuthMiddleware(), subscription.SubscribeHandler)
 		api.POST("/unsubscribe", auth.AuthMiddleware(), subscription.UnsubscribeHandler)
+		r.GET("/api/followers/:id", auth.AuthMiddleware(), subscription.GetFollowersByUserHandler)
+		r.GET("/api/subscriptions", auth.AuthMiddleware(), subscription.GetMySubscriptionsHandler)
 	}
 
 	// Port dynamique
