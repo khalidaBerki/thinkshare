@@ -17,38 +17,6 @@ const docTemplate = `{
     "basePath": "{{.BasePath}}",
     "paths": {
         "/api/profile": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Retourne les informations du profil de l'utilisateur connecté",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user"
-                ],
-                "summary": "Récupérer le profil utilisateur",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/user.ProfileDTO"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
             "put": {
                 "security": [
                     {
@@ -164,6 +132,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/login": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Connexion utilisateur (login email/password)",
+                "parameters": [
+                    {
+                        "description": "Identifiants de connexion",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.LoginInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.TokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/logout": {
             "get": {
                 "produces": [
@@ -230,6 +249,21 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "auth.LoginInput": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
         "auth.RegisterInput": {
             "type": "object",
             "required": [
@@ -254,6 +288,14 @@ const docTemplate = `{
                     "minLength": 6
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.TokenResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
                     "type": "string"
                 }
             }
@@ -427,27 +469,6 @@ const docTemplate = `{
                 }
             }
         },
-        "user.ProfileDTO": {
-            "type": "object",
-            "properties": {
-                "avatar_url": {
-                    "type": "string",
-                    "example": "https://cdn.thinkshare/avatar.jpg"
-                },
-                "bio": {
-                    "type": "string",
-                    "example": "Étudiant à l’EEMI et dev fullstack"
-                },
-                "full_name": {
-                    "type": "string",
-                    "example": "Haithem Hammami"
-                },
-                "id": {
-                    "type": "integer",
-                    "example": 1
-                }
-            }
-        },
         "user.UpdateUserInput": {
             "type": "object",
             "properties": {
@@ -457,7 +478,7 @@ const docTemplate = `{
                 },
                 "bio": {
                     "type": "string",
-                    "example": "Développeur Go, Next.js, passionné par l'éducation"
+                    "example": "Développeur Go, passionné par l'éducation"
                 },
                 "full_name": {
                     "type": "string",
