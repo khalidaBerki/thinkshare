@@ -39,6 +39,7 @@ func ProviderMiddleware() gin.HandlerFunc {
 
 func RegisterRoutes(r *gin.Engine) {
 	r.POST("/register", Register)
+	r.POST("/login", Login)
 	r.GET("/auth/:provider", ProviderMiddleware(), BeginAuthHandler)
 	r.GET("/auth/:provider/callback", ProviderMiddleware(), CallbackHandler)
 	r.GET("/logout", LogoutHandler)
@@ -85,6 +86,48 @@ func Register(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Utilisateur inscrit avec succès"})
+}
+
+type LoginInput struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
+
+// Login godoc
+// @Summary Connexion utilisateur (login email/password)
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body LoginInput true "Identifiants de connexion"
+// @Success 200 {object} TokenResponse
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /login [post]
+func Login(c *gin.Context) {
+	var input LoginInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var u user.User
+	if err := db.GormDB.Where("email = ?", input.Email).First(&u).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "email ou mot de passe invalide"})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(input.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "email ou mot de passe invalide"})
+		return
+	}
+
+	token, err := GenerateJWT(int(u.ID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "erreur lors de la génération du token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, TokenResponse{Token: token})
 }
 
 // BeginAuthHandler godoc
@@ -137,7 +180,7 @@ func CallbackHandler(c *gin.Context) {
 	}
 
 	// Redirige vers la documentation Swagger après authentification
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:8080/swagger/index.html#/")
+	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:8080/swagger/index.html")
 }
 
 // LogoutHandler godoc

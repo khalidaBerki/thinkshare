@@ -114,6 +114,11 @@ func main() {
 		})
 	})
 
+	// Ajoute cette route :
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "Bienvenue sur ThinkShare"})
+	})
+
 	// Swagger
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

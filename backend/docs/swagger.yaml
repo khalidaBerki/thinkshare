@@ -1,4 +1,14 @@
 definitions:
+  auth.LoginInput:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
   auth.RegisterInput:
     properties:
       email:
@@ -18,6 +28,11 @@ definitions:
     - name
     - password
     - username
+    type: object
+  auth.TokenResponse:
+    properties:
+      token:
+        type: string
     type: object
   comment.Comment:
     properties:
@@ -130,28 +145,13 @@ definitions:
         description: monthly or one-time
         type: string
     type: object
-  user.ProfileDTO:
-    properties:
-      avatar_url:
-        example: https://cdn.thinkshare/avatar.jpg
-        type: string
-      bio:
-        example: Étudiant à l’EEMI et dev fullstack
-        type: string
-      full_name:
-        example: Haithem Hammami
-        type: string
-      id:
-        example: 1
-        type: integer
-    type: object
   user.UpdateUserInput:
     properties:
       avatar_url:
         example: https://cdn.thinkshare/avatar.jpg
         type: string
       bio:
-        example: Développeur Go, Next.js, passionné par l'éducation
+        example: Développeur Go, passionné par l'éducation
         type: string
       full_name:
         example: Haithem Hammami
@@ -210,26 +210,6 @@ info:
   contact: {}
 paths:
   /api/profile:
-    get:
-      description: Retourne les informations du profil de l'utilisateur connecté
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/user.ProfileDTO'
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Récupérer le profil utilisateur
-      tags:
-      - user
     put:
       consumes:
       - application/json
@@ -301,6 +281,39 @@ paths:
           schema:
             $ref: '#/definitions/user.User'
       summary: Callback OAuth Google
+      tags:
+      - Auth
+  /login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Identifiants de connexion
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Connexion utilisateur (login email/password)
       tags:
       - Auth
   /logout:
