@@ -222,6 +222,43 @@ definitions:
 info:
   contact: {}
 paths:
+  /api/followers:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: integer
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Récupère tous les followers de l'utilisateur connecté
+      tags:
+      - Subscription
+  /api/followers/{id}:
+    get:
+      parameters:
+      - description: ID du créateur
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                additionalProperties: true
+                type: object
+              type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Récupère tous les followers d’un utilisateur par son ID, avec tag paid/free
+      tags:
+      - Subscription
   /api/profile:
     put:
       consumes:
@@ -293,6 +330,24 @@ paths:
       security:
       - BearerAuth: []
       summary: S’abonner à un créateur (payant ou gratuit)
+      tags:
+      - Subscription
+  /api/subscriptions:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                additionalProperties: true
+                type: object
+              type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Récupère la liste des utilisateurs suivis par l'utilisateur connecté
+        (avec tag paid/free)
       tags:
       - Subscription
   /api/unsubscribe:
