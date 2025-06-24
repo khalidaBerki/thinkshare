@@ -109,14 +109,9 @@ func main() {
 	// Page d'accueil simple
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"message":   "API en mode " + os.Getenv("GIN_MODE"),
+			"message":   "Bienvenue sur ThinkShare - mode " + os.Getenv("GIN_MODE"),
 			"endpoints": []string{"/api/fake-login", "/debug/mode", "/api/posts"},
 		})
-	})
-
-	// Ajoute cette route :
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "Bienvenue sur ThinkShare"})
 	})
 
 	// Swagger
