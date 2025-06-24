@@ -3,7 +3,7 @@ package post
 import (
 	"time"
 
-	"backend/internal/comment"
+	//"backend/internal/comment" //Comments supprimé pour éviter l'import cyclique
 	"backend/internal/like"
 	"backend/internal/media"
 	"backend/internal/postaccess"
@@ -38,8 +38,8 @@ type Post struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 
-	Media      []media.Media           `gorm:"foreignKey:PostID"`
-	Comments   []comment.Comment       `gorm:"foreignKey:PostID"`
+	Media []media.Media `gorm:"foreignKey:PostID"`
+	//Comments   []comment.Comment       `gorm:"foreignKey:PostID"` // Comments supprimé pour éviter l'import cyclique
 	Likes      []like.Like             `gorm:"foreignKey:PostID"`
 	PostAccess []postaccess.PostAccess `gorm:"foreignKey:PostID"`
 }

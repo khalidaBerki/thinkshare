@@ -109,68 +109,67 @@ func main() {
 	// Page d'accueil simple
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"message":   "Bienvenue sur ThinkShare - mode " + os.Getenv("GIN_MODE"),
-			"endpoints": []string{"/api/fake-login", "/debug/mode", "/api/posts"},
+			"message": "Bienvenue sur ThinkShare API",
+			"version": "1.0.0",
+			"endpoints": gin.H{
+				"auth": []string{"/register", "/login", "/auth/google"},
+				"api":  []string{"/api/posts", "/api/comments", "/api/profile"},
+				"docs": "/swagger/index.html",
+			},
 		})
 	})
 
 	// Swagger
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Auth (Google, login, etc.)
+	// 🔐 Auth routes (registration, login, OAuth)
 	auth.InitGoth()
 	auth.RegisterRoutes(r)
 
-	// ✅ ✅ ✅ FAKE LOGIN ET ROUTES DE DEBUG ✅ ✅ ✅
-
-	// Endpoint pour vérifier le mode
-	r.GET("/debug/mode", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"mode":         gin.Mode(),
-			"env_gin_mode": os.Getenv("GIN_MODE"),
-			"is_debug":     gin.Mode() != gin.ReleaseMode,
-			"server_time":  time.Now().Format(time.RFC3339),
+	// 🔧 Routes de debug (seulement en mode développement)
+	if gin.Mode() != gin.ReleaseMode {
+		r.GET("/debug/mode", func(c *gin.Context) {
+			c.JSON(200, gin.H{
+				"mode":         gin.Mode(),
+				"env_gin_mode": os.Getenv("GIN_MODE"),
+				"is_debug":     gin.Mode() != gin.ReleaseMode,
+				"server_time":  time.Now().Format(time.RFC3339),
+			})
 		})
-	})
 
-	// On met toujours la route fake-login pour le développement
-	log.Printf("📢 Ajout de la route /api/fake-login pour le développement")
-	r.POST("/api/fake-login", func(c *gin.Context) {
-		// Simule un utilisateur avec ID = 1
-		token, err := auth.GenerateJWT(1)
-		if err != nil {
-			c.JSON(500, gin.H{"error": "Impossible de générer le token"})
-			return
-		}
-		c.JSON(200, gin.H{
-			"token":   token,
-			"expires": time.Now().Add(24 * time.Hour).Format(time.RFC3339),
-			"user_id": 1,
+		// Route pour tester l'authentification
+		r.GET("/api/test-auth", auth.AuthMiddleware(), func(c *gin.Context) {
+			userID := c.GetInt("user_id")
+			c.JSON(200, gin.H{
+				"message": "Authentification réussie",
+				"user_id": userID,
+				"time":    time.Now().Format(time.RFC3339),
+			})
 		})
-	})
 
-	// Route pour tester l'authentification
-	r.GET("/api/test-auth", auth.AuthMiddleware(), func(c *gin.Context) {
-		userID := c.GetInt("user_id")
-		c.JSON(200, gin.H{
-			"message": "Authentification réussie",
-			"user_id": userID,
-			"time":    time.Now().Format(time.RFC3339),
-		})
-	})
+		log.Printf("🔧 Routes de debug activées (mode développement)")
+	}
 
-	// ❗ Ces routes seront actives quel que soit le mode
 	// 🔐 Routes API protégées
 	api := r.Group("/api", auth.AuthMiddleware())
 	{
+		// 👤 Routes utilisateur
 		api.GET("/profile", user.GetProfileHandler)
 		api.PUT("/profile", user.UpdateProfileHandler)
 
-		// Ajouter les routes des posts
+		// 📝 Routes posts
 		postRepo := post.NewRepository()
 		postService := post.NewService(postRepo)
 		postHandler := post.NewHandler(postService)
 		postHandler.RegisterRoutes(api)
+
+		// 💬 Routes commentaires
+		commentRepo := comment.NewRepository(db.GormDB)
+		commentService := comment.NewService(commentRepo, postRepo)
+		commentHandler := comment.NewHandler(commentService)
+		commentHandler.RegisterRoutes(api)
+
+		log.Printf("✅ Routes API protégées configurées")
 	}
 
 	// Port dynamique
@@ -179,7 +178,9 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("🚀 Serveur lancé sur le port : %s", port)
+	log.Printf("🚀 Serveur ThinkShare lancé sur le port : %s", port)
+	log.Printf("📚 Documentation Swagger : http://localhost:%s/swagger/index.html", port)
+
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("❌ Erreur de lancement : %v", err)
 	}
