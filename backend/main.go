@@ -156,6 +156,10 @@ func main() {
 		// 👤 Routes utilisateur
 		api.GET("/profile", user.GetProfileHandler)
 		api.PUT("/profile", user.UpdateProfileHandler)
+		api.POST("/subscribe", auth.AuthMiddleware(), subscription.SubscribeHandler)
+		api.POST("/unsubscribe", auth.AuthMiddleware(), subscription.UnsubscribeHandler)
+		r.GET("/api/followers/:id", auth.AuthMiddleware(), subscription.GetFollowersByUserHandler)
+		r.GET("/api/subscriptions", auth.AuthMiddleware(), subscription.GetMySubscriptionsHandler)
 
 		// 📝 Routes posts
 		postRepo := post.NewRepository()
