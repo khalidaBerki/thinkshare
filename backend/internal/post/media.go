@@ -50,12 +50,12 @@ type VideoInfo struct {
 
 // Structure pour stocker les informations sur un document
 type DocumentInfo struct {
-	Format      string `json:"format"`
-	FileSize    int64  `json:"filesize"`
-	Category    string `json:"category"`
-	ContentType string `json:"content_type"`
-	IsPDF       bool   `json:"is_pdf"`
-	IsBinary    bool   `json:"is_binary"`
+	Format       string `json:"format"`
+	FileSize     int64  `json:"filesize"`
+	Category     string `json:"category"`
+	DocumentType string `json:"document_type"`
+	IsPDF        bool   `json:"is_pdf"`
+	IsBinary     bool   `json:"is_binary"`
 }
 
 // --- FORMATS DE FICHIERS ---
@@ -290,7 +290,7 @@ func validateMimeType(file *multipart.FileHeader) bool {
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	mimeType := file.Header.Get("Content-Type")
 
-	// Si le content-type semble suspect, on tente une détection plus précise
+	// Si le document_type semble suspect, on tente une détection plus précise
 	if strings.Contains(mimeType, "application/octet-stream") {
 		detectedType, err := detectMimeType(file)
 		if err == nil && detectedType != mimeType {
@@ -387,7 +387,7 @@ func detectMimeType(file *multipart.FileHeader) (string, error) {
 	}
 
 	// Utiliser la fonction DetectContentType du package http
-	contentType := http.DetectContentType(buffer[:n])
+	documentType := http.DetectContentType(buffer[:n])
 
 	// Vérifier des signatures spécifiques pour plus de précision
 	if bytes.HasPrefix(buffer, []byte("%PDF")) {
@@ -439,7 +439,7 @@ func detectMimeType(file *multipart.FileHeader) (string, error) {
 		return "text/javascript", nil
 	}
 
-	return contentType, nil
+	return documentType, nil
 }
 
 // --- GESTION DES FICHIERS ---
@@ -645,12 +645,12 @@ func getDocumentInfo(file *multipart.FileHeader) DocumentInfo {
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 
 	info := DocumentInfo{
-		FileSize:    file.Size,
-		ContentType: file.Header.Get("Content-Type"),
-		Format:      ext,
-		Category:    getDocumentCategory(file.Filename),
-		IsPDF:       ext == ".pdf",
-		IsBinary:    isDocumentBinary(file.Filename),
+		FileSize:     file.Size,
+		DocumentType: file.Header.Get("document_type"),
+		Format:       ext,
+		Category:     getDocumentCategory(file.Filename),
+		IsPDF:        ext == ".pdf",
+		IsBinary:     isDocumentBinary(file.Filename),
 	}
 
 	return info
@@ -725,9 +725,29 @@ func validateEducationalDocumentQuality(file *multipart.FileHeader) (bool, strin
 
 	// 4. Vérifier le type MIME
 	if !validateMimeType(file) {
-		log.Printf("⚠️ Le type MIME du document ne correspond pas à l'extension: %s", file.Header.Get("Content-Type"))
+		log.Printf("⚠️ Le type MIME du document ne correspond pas à l'extension: %s", file.Header.Get("document_type"))
 		// On ne bloque pas l'upload mais on log un avertissement
 	}
 
 	return true, ""
+}
+
+// Vérifie si un fichier est une image valide (exporté)
+func IsValidImage(filename string) bool {
+	return isValidImage(filename)
+}
+
+// Vérifie si un fichier est une vidéo valide (exporté)
+func IsValidVideo(filename string) bool {
+	return isValidVideo(filename)
+}
+
+// Vérifie si un fichier est un document valide (exporté)
+func IsValidDocument(filename string) bool {
+	return isValidDocument(filename)
+}
+
+// Vérifie si un fichier est sous une taille maximale (exporté, version simple)
+func IsUnderSize(f *multipart.FileHeader, max int64) bool {
+	return f.Size <= max
 }
