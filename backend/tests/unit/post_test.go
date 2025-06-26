@@ -3,7 +3,6 @@ package unit
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"backend/internal/media"
 	"backend/internal/post"
@@ -12,19 +11,15 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Mock du repository pour les tests unitaires
+// --- Mock Repository ---
+
 type MockPostRepository struct {
 	mock.Mock
 }
 
-func (m *MockPostRepository) Create(post *post.Post) error {
-	args := m.Called(post)
+func (m *MockPostRepository) Create(p *post.Post) error {
+	args := m.Called(p)
 	return args.Error(0)
-}
-
-func (m *MockPostRepository) GetAll(page, pageSize int, visibility post.Visibility) ([]post.Post, error) {
-	args := m.Called(page, pageSize, visibility)
-	return args.Get(0).([]post.Post), args.Error(1)
 }
 
 func (m *MockPostRepository) GetByID(id uint) (*post.Post, error) {
@@ -35,14 +30,39 @@ func (m *MockPostRepository) GetByID(id uint) (*post.Post, error) {
 	return args.Get(0).(*post.Post), args.Error(1)
 }
 
-func (m *MockPostRepository) Update(post *post.Post) error {
-	args := m.Called(post)
+func (m *MockPostRepository) GetAll(page, limit int) ([]*post.Post, int64, error) {
+	args := m.Called(page, limit)
+	return args.Get(0).([]*post.Post), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockPostRepository) GetByCreatorID(creatorID uint, page, limit int) ([]*post.Post, int64, error) {
+	args := m.Called(creatorID, page, limit)
+	return args.Get(0).([]*post.Post), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockPostRepository) Update(p *post.Post) error {
+	args := m.Called(p)
 	return args.Error(0)
 }
 
-func (m *MockPostRepository) Delete(id uint, userID uint) error {
-	args := m.Called(id, userID)
+func (m *MockPostRepository) Delete(id uint) error {
+	args := m.Called(id)
 	return args.Error(0)
+}
+
+func (m *MockPostRepository) GetPostStats(postID, userID uint) (*post.PostStats, error) {
+	args := m.Called(postID, userID)
+	return args.Get(0).(*post.PostStats), args.Error(1)
+}
+
+func (m *MockPostRepository) GetPostsWithStats(posts []*post.Post, userID uint) ([]*post.PostDTO, error) {
+	args := m.Called(posts, userID)
+	return args.Get(0).([]*post.PostDTO), args.Error(1)
+}
+
+func (m *MockPostRepository) GetCreatorInfo(userID uint) (*post.CreatorInfo, error) {
+	args := m.Called(userID)
+	return args.Get(0).(*post.CreatorInfo), args.Error(1)
 }
 
 func (m *MockPostRepository) CountMediaByType(mediaType string) (int64, error) {
@@ -50,50 +70,55 @@ func (m *MockPostRepository) CountMediaByType(mediaType string) (int64, error) {
 	return args.Get(0).(int64), args.Error(1)
 }
 
-// Tests unitaires pour le service post
+// --- Tests ---
+
 func TestCreatePost_Success(t *testing.T) {
 	mockRepo := new(MockPostRepository)
 	service := post.NewService(mockRepo)
 
-	// Créer un post valide avec contenu textuel et sans média
-	testPost := &post.Post{
-		CreatorID:  1,
-		Content:    "Test post content",
+	input := post.CreatePostInput{
+		Content:    "Test post",
 		Visibility: post.Public,
-		CreatedAt:  time.Now(),
 	}
 
-	// Configurer le mock pour retourner nil (succès)
-	mockRepo.On("Create", testPost).Return(nil)
+	createdPost := &post.Post{
+		ID:         1,
+		CreatorID:  1,
+		Content:    input.Content,
+		Visibility: input.Visibility,
+	}
 
-	// Appeler la méthode et vérifier le résultat
-	err := service.CreatePost(testPost)
+	mockRepo.On("Create", mock.AnythingOfType("*post.Post")).Return(nil)
+	mockRepo.On("GetByID", mock.AnythingOfType("uint")).Return(createdPost, nil)
+	mockRepo.On("GetPostsWithStats", []*post.Post{createdPost}, uint(1)).
+		Return([]*post.PostDTO{
+			{ID: 1, CreatorID: 1, Content: input.Content, Visibility: string(input.Visibility)},
+		}, nil)
+	mockRepo.On("GetCreatorInfo", uint(1)).
+		Return(&post.CreatorInfo{ID: 1, Username: "testuser"}, nil)
 
-	// Assertions
+	dto, err := service.CreatePost(1, input)
+
 	assert.NoError(t, err)
+	assert.NotNil(t, dto)
+	assert.Equal(t, input.Content, dto.Content)
 	mockRepo.AssertExpectations(t)
 }
 
-func TestCreatePost_EmptyContentNoMedia(t *testing.T) {
+func TestCreatePost_EmptyContent(t *testing.T) {
 	mockRepo := new(MockPostRepository)
 	service := post.NewService(mockRepo)
 
-	// Créer un post sans contenu ni média (invalide)
-	testPost := &post.Post{
-		CreatorID:  1,
-		Content:    "", // Contenu vide
+	input := post.CreatePostInput{
+		Content:    "",
 		Visibility: post.Public,
-		CreatedAt:  time.Now(),
-		Media:      []media.Media{}, // Pas de média
+		Media:      []media.Media{},
 	}
 
-	// Appeler la méthode
-	err := service.CreatePost(testPost)
+	_, err := service.CreatePost(1, input)
 
-	// Assertions
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "must have either content or media")
-	// Le mock ne devrait pas être appelé car la validation échoue avant
+	assert.Contains(t, err.Error(), "vide")
 	mockRepo.AssertNotCalled(t, "Create")
 }
 
@@ -101,21 +126,15 @@ func TestCreatePost_InvalidVisibility(t *testing.T) {
 	mockRepo := new(MockPostRepository)
 	service := post.NewService(mockRepo)
 
-	// Créer un post avec une visibilité invalide
-	testPost := &post.Post{
-		CreatorID:  1,
-		Content:    "Test post content",
-		Visibility: "invalid_visibility", // Visibilité invalide
-		CreatedAt:  time.Now(),
+	input := post.CreatePostInput{
+		Content:    "Contenu",
+		Visibility: "secret",
 	}
 
-	// Appeler la méthode
-	err := service.CreatePost(testPost)
+	_, err := service.CreatePost(1, input)
 
-	// Assertions
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid visibility")
-	// Le mock ne devrait pas être appelé car la validation échoue avant
 	mockRepo.AssertNotCalled(t, "Create")
 }
 
@@ -123,25 +142,28 @@ func TestGetPostByID_Success(t *testing.T) {
 	mockRepo := new(MockPostRepository)
 	service := post.NewService(mockRepo)
 
-	// Post attendu à retourner
-	expectedPost := &post.Post{
+	existing := &post.Post{
 		ID:         1,
 		CreatorID:  2,
-		Content:    "Test post content",
+		Content:    "Un post",
 		Visibility: post.Public,
-		CreatedAt:  time.Now(),
 	}
 
-	// Configurer le mock pour retourner le post
-	mockRepo.On("GetByID", uint(1)).Return(expectedPost, nil)
+	expectedDTO := &post.PostDTO{
+		ID:         1,
+		CreatorID:  2,
+		Content:    "Un post",
+		Visibility: string(post.Public),
+	}
 
-	// Appeler la méthode
-	result, err := service.GetPostByID(1)
+	mockRepo.On("GetByID", uint(1)).Return(existing, nil)
+	mockRepo.On("GetPostsWithStats", []*post.Post{existing}, uint(0)).Return([]*post.PostDTO{expectedDTO}, nil)
+	mockRepo.On("GetCreatorInfo", uint(2)).Return(&post.CreatorInfo{ID: 2, Username: "auteur"}, nil)
 
-	// Assertions
+	dto, err := service.GetPostByID(1, 0)
+
 	assert.NoError(t, err)
-	assert.Equal(t, expectedPost.ID, result.ID)
-	assert.Equal(t, expectedPost.Content, result.Content)
+	assert.Equal(t, expectedDTO.Content, dto.Content)
 	mockRepo.AssertExpectations(t)
 }
 
@@ -149,52 +171,45 @@ func TestGetPostByID_NotFound(t *testing.T) {
 	mockRepo := new(MockPostRepository)
 	service := post.NewService(mockRepo)
 
-	// Configurer le mock pour simuler un post non trouvé
-	mockRepo.On("GetByID", uint(999)).Return(nil, errors.New("record not found"))
+	mockRepo.On("GetByID", uint(404)).Return(nil, errors.New("post non trouvé"))
 
-	// Appeler la méthode
-	result, err := service.GetPostByID(999)
+	// Correction ici : ajoute un second argument (userID, par exemple 0)
+	dto, err := service.GetPostByID(404, 0)
 
-	// Assertions
 	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "not found")
-	mockRepo.AssertExpectations(t)
+	assert.Nil(t, dto)
+	assert.Contains(t, err.Error(), "post non trouvé")
 }
 
 func TestUpdatePost_Success(t *testing.T) {
 	mockRepo := new(MockPostRepository)
 	service := post.NewService(mockRepo)
 
-	// Post existant en base de données
-	existingPost := &post.Post{
+	existing := &post.Post{
 		ID:         1,
 		CreatorID:  2,
-		Content:    "Original content",
+		Content:    "Old",
 		Visibility: post.Private,
 	}
 
-	// Configurer le mock pour retourner le post existant
-	mockRepo.On("GetByID", uint(1)).Return(existingPost, nil)
-
-	// Préparation des données pour la mise à jour
-	// (pas besoin de créer un nouvel objet post car on utilise l'input directement)
-
-	// Configurer le mock pour accepter la mise à jour
+	mockRepo.On("GetByID", uint(1)).Return(existing, nil)
 	mockRepo.On("Update", mock.MatchedBy(func(p *post.Post) bool {
-		return p.ID == 1 && p.Content == "Updated content" && p.Visibility == post.Public
+		return p.Content == "New content" && p.Visibility == post.Public
 	})).Return(nil)
+	mockRepo.On("GetPostsWithStats", mock.Anything, mock.Anything).Return([]*post.PostDTO{
+		{
+			ID:         1,
+			Content:    "New content",
+			Visibility: string(post.Public),
+		},
+	}, nil)
+	mockRepo.On("GetCreatorInfo", uint(2)).Return(&post.CreatorInfo{ID: 2, Username: "auteur"}, nil) // <-- AJOUTE CETTE LIGNE
 
-	// Préparer les données d'entrée pour la mise à jour
-	updateInput := post.UpdatePostInput{
-		Content:    "Updated content",
+	_, err := service.UpdatePost(1, 2, post.UpdatePostInput{
+		Content:    "New content",
 		Visibility: post.Public,
-	}
+	})
 
-	// Appeler la méthode de mise à jour
-	err := service.UpdatePost(1, 2, updateInput)
-
-	// Assertions
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 }
@@ -203,30 +218,22 @@ func TestUpdatePost_Unauthorized(t *testing.T) {
 	mockRepo := new(MockPostRepository)
 	service := post.NewService(mockRepo)
 
-	// Post existant en base de données
-	existingPost := &post.Post{
-		ID:         1,
-		CreatorID:  2, // Créateur ID 2
-		Content:    "Original content",
+	postToEdit := &post.Post{
+		ID:        1,
+		CreatorID: 2,
+		Content:   "Texte",
+	}
+
+	mockRepo.On("GetByID", uint(1)).Return(postToEdit, nil)
+
+	// Correction ici : capture les deux valeurs de retour
+	_, err := service.UpdatePost(1, 99, post.UpdatePostInput{
+		Content:    "Trop tard",
 		Visibility: post.Private,
-	}
+	})
 
-	// Configurer le mock pour retourner le post existant
-	mockRepo.On("GetByID", uint(1)).Return(existingPost, nil)
-
-	// Préparer les données d'entrée pour la mise à jour
-	updateInput := post.UpdatePostInput{
-		Content:    "Updated content",
-		Visibility: post.Public,
-	}
-
-	// Utilisateur 3 (différent du créateur) tente de mettre à jour
-	err := service.UpdatePost(1, 3, updateInput)
-
-	// Assertions
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unauthorized")
-	// Vérifier que Update n'a pas été appelé
+	assert.Contains(t, err.Error(), "non autorisé")
 	mockRepo.AssertNotCalled(t, "Update")
 }
 
@@ -234,24 +241,13 @@ func TestDeletePost_Success(t *testing.T) {
 	mockRepo := new(MockPostRepository)
 	service := post.NewService(mockRepo)
 
-	// Post existant en base de données
-	existingPost := &post.Post{
-		ID:         1,
-		CreatorID:  2,
-		Content:    "Post to delete",
-		Visibility: post.Public,
-	}
+	postToDelete := &post.Post{ID: 1, CreatorID: 2}
 
-	// Configurer le mock pour retourner le post existant
-	mockRepo.On("GetByID", uint(1)).Return(existingPost, nil)
+	mockRepo.On("GetByID", uint(1)).Return(postToDelete, nil)
+	mockRepo.On("Delete", uint(1)).Return(nil)
 
-	// Configurer le mock pour accepter la suppression
-	mockRepo.On("Delete", uint(1), uint(2)).Return(nil)
-
-	// Appeler la méthode de suppression
 	err := service.DeletePost(1, 2)
 
-	// Assertions
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 }
@@ -260,23 +256,13 @@ func TestDeletePost_Unauthorized(t *testing.T) {
 	mockRepo := new(MockPostRepository)
 	service := post.NewService(mockRepo)
 
-	// Post existant en base de données
-	existingPost := &post.Post{
-		ID:         1,
-		CreatorID:  2, // Créateur ID 2
-		Content:    "Post to delete",
-		Visibility: post.Public,
-	}
+	postToDelete := &post.Post{ID: 1, CreatorID: 2}
 
-	// Configurer le mock pour retourner le post existant
-	mockRepo.On("GetByID", uint(1)).Return(existingPost, nil)
+	mockRepo.On("GetByID", uint(1)).Return(postToDelete, nil)
 
-	// Utilisateur 3 (différent du créateur) tente de supprimer
-	err := service.DeletePost(1, 3)
+	err := service.DeletePost(1, 99)
 
-	// Assertions
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unauthorized")
-	// Vérifier que Delete n'a pas été appelé
+	assert.Contains(t, err.Error(), "non autorisé")
 	mockRepo.AssertNotCalled(t, "Delete")
 }

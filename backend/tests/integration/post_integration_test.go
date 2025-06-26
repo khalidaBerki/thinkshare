@@ -5,13 +5,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 // Mock du repository pour les tests d'intégration
@@ -24,11 +25,6 @@ func (m *MockPostRepository) Create(post *post.Post) error {
 	return args.Error(0)
 }
 
-func (m *MockPostRepository) GetAll(page, pageSize int, visibility post.Visibility) ([]post.Post, error) {
-	args := m.Called(page, pageSize, visibility)
-	return args.Get(0).([]post.Post), args.Error(1)
-}
-
 func (m *MockPostRepository) GetByID(id uint) (*post.Post, error) {
 	args := m.Called(id)
 	if args.Get(0) == nil {
@@ -37,14 +33,39 @@ func (m *MockPostRepository) GetByID(id uint) (*post.Post, error) {
 	return args.Get(0).(*post.Post), args.Error(1)
 }
 
+func (m *MockPostRepository) GetAll(page, limit int) ([]*post.Post, int64, error) {
+	args := m.Called(page, limit)
+	return args.Get(0).([]*post.Post), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockPostRepository) GetByCreatorID(creatorID uint, page, limit int) ([]*post.Post, int64, error) {
+	args := m.Called(creatorID, page, limit)
+	return args.Get(0).([]*post.Post), args.Get(1).(int64), args.Error(2)
+}
+
 func (m *MockPostRepository) Update(post *post.Post) error {
 	args := m.Called(post)
 	return args.Error(0)
 }
 
-func (m *MockPostRepository) Delete(id uint, userID uint) error {
-	args := m.Called(id, userID)
+func (m *MockPostRepository) Delete(id uint) error {
+	args := m.Called(id)
 	return args.Error(0)
+}
+
+func (m *MockPostRepository) GetPostStats(postID, userID uint) (*post.PostStats, error) {
+	args := m.Called(postID, userID)
+	return args.Get(0).(*post.PostStats), args.Error(1)
+}
+
+func (m *MockPostRepository) GetPostsWithStats(posts []*post.Post, userID uint) ([]*post.PostDTO, error) {
+	args := m.Called(posts, userID)
+	return args.Get(0).([]*post.PostDTO), args.Error(1)
+}
+
+func (m *MockPostRepository) GetCreatorInfo(userID uint) (*post.CreatorInfo, error) {
+	args := m.Called(userID)
+	return args.Get(0).(*post.CreatorInfo), args.Error(1)
 }
 
 func (m *MockPostRepository) CountMediaByType(mediaType string) (int64, error) {
@@ -108,6 +129,28 @@ func TestIntegration_CreateTextPost(t *testing.T) {
 		return p.Content == "Contenu du post de test" && p.Visibility == post.Public
 	})).Return(nil)
 
+	mockRepo.On("GetPostsWithStats", mock.AnythingOfType("[]*post.Post"), uint(1)).Return([]*post.PostDTO{
+		{
+			ID:         0,
+			CreatorID:  1,
+			Content:    "Contenu du post de test",
+			Visibility: string(post.Public),
+			MediaURLs:  []string{},
+		},
+	}, nil)
+
+	mockRepo.On("GetByID", uint(0)).Return(&post.Post{
+		ID:         0,
+		CreatorID:  1,
+		Content:    "Contenu du post de test",
+		Visibility: post.Public,
+	}, nil)
+
+	mockRepo.On("GetCreatorInfo", uint(1)).Return(&post.CreatorInfo{
+		ID:       1,
+		Username: "testuser",
+	}, nil)
+
 	// Créer un buffer pour les données multipart/form-data
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
@@ -129,7 +172,7 @@ func TestIntegration_CreateTextPost(t *testing.T) {
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
 	// Journaliser pour débogage
-	t.Logf("URL: %s, Content-Type: %s", req.URL.String(), req.Header.Get("Content-Type"))
+	t.Logf("URL: %s, document_type: %s", req.URL.String(), req.Header.Get("Content-Type"))
 
 	// Exécuter la requête
 	rec := httptest.NewRecorder()
@@ -155,6 +198,24 @@ func TestIntegration_GetPostByID(t *testing.T) {
 
 	// Configurer le mock pour simuler la récupération du post
 	mockRepo.On("GetByID", uint(1)).Return(testPost, nil)
+
+	// Ajoute ce mock pour GetPostsWithStats
+	mockRepo.On("GetPostsWithStats", mock.AnythingOfType("[]*post.Post"), uint(1)).Return(
+		[]*post.PostDTO{
+			{
+				ID:         testPost.ID,
+				CreatorID:  testPost.CreatorID,
+				Content:    testPost.Content,
+				Visibility: string(testPost.Visibility),
+				MediaURLs:  []string{},
+			},
+		}, nil,
+	)
+
+	mockRepo.On("GetCreatorInfo", uint(1)).Return(&post.CreatorInfo{
+		ID:       1,
+		Username: "testuser",
+	}, nil)
 
 	// Créer une requête GET pour récupérer le post
 	req, _ := http.NewRequest("GET", "/api/posts/1", nil)
@@ -184,13 +245,28 @@ func TestIntegration_GetAllPosts(t *testing.T) {
 	r, _, mockRepo := setupPostRouter()
 
 	// Créer plusieurs posts de test à retourner
-	testPosts := []post.Post{}
+	testPosts := []*post.Post{}
 	for i := 1; i <= 5; i++ {
-		testPosts = append(testPosts, *createTestPost(uint(i)))
+		testPosts = append(testPosts, createTestPost(uint(i)))
 	}
 
-	// Configurer le mock pour simuler la récupération des posts
-	mockRepo.On("GetAll", 1, 10, post.Visibility("")).Return(testPosts, nil)
+	// Créer les DTO correspondants
+	testDTOs := []*post.PostDTO{}
+	for _, p := range testPosts {
+		testDTOs = append(testDTOs, &post.PostDTO{
+			ID:         p.ID,
+			CreatorID:  p.CreatorID,
+			Content:    p.Content,
+			Visibility: string(p.Visibility),
+			CreatedAt:  p.CreatedAt,
+			UpdatedAt:  p.UpdatedAt,
+			MediaURLs:  []string{},
+		})
+	}
+
+	// Configurer le mock pour simuler la récupération des posts et des stats
+	mockRepo.On("GetAll", 1, mock.AnythingOfType("int")).Return(testPosts, int64(len(testPosts)), nil)
+	mockRepo.On("GetPostsWithStats", testPosts, uint(1)).Return(testDTOs, nil)
 
 	// Créer une requête GET pour récupérer tous les posts
 	req, _ := http.NewRequest("GET", "/api/posts/?page=1&pageSize=10", nil)
@@ -204,10 +280,13 @@ func TestIntegration_GetAllPosts(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	// Vérifier la réponse
-	var response []post.Post
+	var response struct {
+		Pagination map[string]interface{} `json:"pagination"`
+		Posts      []*post.PostDTO        `json:"posts"`
+	}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Len(t, response, 5) // Nous avons créé 5 posts
+	assert.Len(t, response.Posts, 5) // Nous avons créé 5 posts
 
 	// Vérifier que le mock a été appelé comme prévu
 	mockRepo.AssertExpectations(t)
@@ -229,6 +308,23 @@ func TestIntegration_UpdatePost(t *testing.T) {
 		return p.ID == 1 && p.Content == "Contenu mis à jour" && p.Visibility == post.Public
 	})).Return(nil)
 
+	mockRepo.On("GetPostsWithStats", []*post.Post{testPost}, uint(1)).Return([]*post.PostDTO{
+		{
+			ID:         testPost.ID,
+			CreatorID:  testPost.CreatorID,
+			Content:    "Contenu mis à jour",
+			Visibility: string(post.Public),
+			CreatedAt:  testPost.CreatedAt,
+			UpdatedAt:  testPost.UpdatedAt,
+			MediaURLs:  []string{},
+		},
+	}, nil)
+
+	mockRepo.On("GetCreatorInfo", uint(1)).Return(&post.CreatorInfo{
+		ID:       1,
+		Username: "testuser",
+	}, nil)
+
 	// Préparer les données pour la mise à jour
 	updateData := post.UpdatePostInput{
 		Content:    "Contenu mis à jour",
@@ -238,7 +334,7 @@ func TestIntegration_UpdatePost(t *testing.T) {
 
 	// Créer une requête PUT
 	req, _ := http.NewRequest("PUT", "/api/posts/1", bytes.NewBuffer(jsonData))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("document_type", "application/json")
 
 	// Exécuter la requête
 	w := httptest.NewRecorder()
@@ -261,7 +357,7 @@ func TestIntegration_DeletePost(t *testing.T) {
 
 	// Configurer le mock pour simuler la récupération et la suppression du post
 	mockRepo.On("GetByID", uint(1)).Return(testPost, nil)
-	mockRepo.On("Delete", uint(1), uint(1)).Return(nil)
+	mockRepo.On("Delete", uint(1)).Return(nil)
 
 	// Créer une requête DELETE
 	req, _ := http.NewRequest("DELETE", "/api/posts/1", nil)

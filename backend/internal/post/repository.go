@@ -3,122 +3,238 @@ package post
 import (
 	"backend/internal/db"
 	"backend/internal/media"
+
+	userModel "backend/internal/user"
 	"errors"
-	"fmt"
-	_ "gorm.io/gorm"
-	_ "gorm.io/gorm/clause"
-	"log"
-	"os"
+
+	"gorm.io/gorm"
 )
 
-// Interface du repository post
 type Repository interface {
 	Create(post *Post) error
-	GetAll(page, pageSize int, visibility Visibility) ([]Post, error)
 	GetByID(id uint) (*Post, error)
+	GetAll(page, limit int) ([]*Post, int64, error)
+	GetByCreatorID(creatorID uint, page, limit int) ([]*Post, int64, error)
 	Update(post *Post) error
-	Delete(id uint, userID uint) error
+	Delete(id uint) error
+
+	// Méthodes pour les statistiques
+	GetPostStats(postID, userID uint) (*PostStats, error)
+	GetPostsWithStats(posts []*Post, userID uint) ([]*PostDTO, error)
+
+	// Ajout de la méthode manquante
+	GetCreatorInfo(userID uint) (*CreatorInfo, error)
+
 	CountMediaByType(mediaType string) (int64, error)
 }
 
-// Implémentation du repository
-type repository struct{}
+type repository struct {
+	db *gorm.DB
+}
 
-// Créer un nouveau repository
 func NewRepository() Repository {
-	return &repository{}
+	return &repository{db: db.GormDB}
 }
 
-// Créer un nouveau post
 func (r *repository) Create(post *Post) error {
-	return db.GormDB.Create(post).Error
-}
-
-// Récupérer tous les posts avec pagination et filtrage
-func (r *repository) GetAll(page, pageSize int, visibility Visibility) ([]Post, error) {
-	var posts []Post
-	offset := (page - 1) * pageSize
-
-	query := db.GormDB.Preload("Media")
-
-	// Filtrer par visibilité si spécifiée
-	if visibility != "" {
-		query = query.Where("visibility = ?", visibility)
+	if post == nil {
+		return errors.New("post cannot be nil")
 	}
-
-	err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&posts).Error
-	return posts, err
+	// Sauvegarde le post
+	if err := r.db.Create(post).Error; err != nil {
+		return err
+	}
+	// Sauvegarde les médias associés (si présents)
+	if len(post.Media) > 0 {
+		for i := range post.Media {
+			post.Media[i].PostID = post.ID
+			post.Media[i].ID = 0 // Laisse GORM gérer l'auto-incrément
+		}
+		// Crée tous les médias en une seule requête
+		if err := r.db.Create(&post.Media).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// Récupérer un post par son ID
 func (r *repository) GetByID(id uint) (*Post, error) {
 	var post Post
-	err := db.GormDB.Preload("Media").First(&post, id).Error
+	err := r.db.Preload("Media").First(&post, id).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("post not found")
+		}
 		return nil, err
 	}
 	return &post, nil
 }
 
-// Compter le nombre de médias par type
-func (r *repository) CountMediaByType(mediaType string) (int64, error) {
-	var count int64
-	query := db.GormDB.Model(&media.Media{}).Where("media_type = ?", mediaType)
-	result := query.Count(&count)
-	return count, result.Error
+func (r *repository) GetAll(page, limit int) ([]*Post, int64, error) {
+	var posts []*Post
+	var total int64
+
+	// Compter le total
+	if err := r.db.Model(&Post{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Récupérer les posts avec pagination
+	offset := (page - 1) * limit
+	err := r.db.Preload("Media").Order("created_at DESC").Offset(offset).Limit(limit).Find(&posts).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return posts, total, nil
 }
 
-// Mettre à jour un post existant
+func (r *repository) GetByCreatorID(creatorID uint, page, limit int) ([]*Post, int64, error) {
+	var posts []*Post
+	var total int64
+
+	// Compter le total
+	if err := r.db.Model(&Post{}).Where("creator_id = ?", creatorID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Récupérer les posts avec pagination
+	offset := (page - 1) * limit
+	err := r.db.Preload("Media").Where("creator_id = ?", creatorID).Order("created_at DESC").Offset(offset).Limit(limit).Find(&posts).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return posts, total, nil
+}
+
 func (r *repository) Update(post *Post) error {
-	return db.GormDB.Save(post).Error
+	if post == nil {
+		return errors.New("post cannot be nil")
+	}
+	return r.db.Save(post).Error
 }
 
-// Supprimer un post et ses médias associés
-func (r *repository) Delete(id uint, userID uint) error {
-	tx := db.GormDB.Begin()
+func (r *repository) Delete(id uint) error {
+	tx := r.db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
 	}()
 
-	// Récupérer le post avec ses médias
-	var post Post
-	if err := tx.Preload("Media").First(&post, id).Error; err != nil {
+	// Supprimer les médias associés
+	if err := tx.Where("post_id = ?", id).Delete(&media.Media{}).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	// Vérifier que l'utilisateur est autorisé à supprimer le post
-	if post.CreatorID != userID {
-		tx.Rollback()
-		return errors.New("unauthorized")
-	}
-
-	// 1. D'abord supprimer les entrées de médias dans la base de données
-	if len(post.Media) > 0 {
-		log.Printf("🗑️ Suppression de %d médias pour le post ID %d", len(post.Media), post.ID)
-		if err := tx.Delete(&post.Media).Error; err != nil {
-			tx.Rollback()
-			return fmt.Errorf("échec de la suppression des médias en base: %v", err)
-		}
-	}
-
-	// 2. Ensuite supprimer les fichiers physiques
-	for _, m := range post.Media {
-		// Ignorer l'erreur si le fichier n'existe pas déjà
-		err := os.Remove(m.MediaURL)
-		if err != nil && !os.IsNotExist(err) {
-			// Journaliser l'erreur mais continuer
-			log.Printf("⚠️ Impossible de supprimer le fichier %s: %v", m.MediaURL, err)
-		}
-	}
-
-	// 3. Enfin, supprimer le post
-	if err := tx.Delete(&post).Error; err != nil {
+	// Supprimer le post
+	if err := tx.Delete(&Post{}, id).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
 	return tx.Commit().Error
+}
+
+// GetPostStats récupère les statistiques d'un post
+func (r *repository) GetPostStats(postID, userID uint) (*PostStats, error) {
+	stats := &PostStats{PostID: postID}
+
+	// Compter les likes
+	var likeCount int64
+	if err := r.db.Table("likes").Where("post_id = ?", postID).Count(&likeCount).Error; err != nil {
+		return nil, err
+	}
+	stats.LikeCount = int(likeCount)
+
+	// Compter les commentaires
+	var commentCount int64
+	if err := r.db.Table("comments").Where("post_id = ?", postID).Count(&commentCount).Error; err != nil {
+		return nil, err
+	}
+	stats.CommentCount = int(commentCount)
+
+	// Vérifier si l'utilisateur a liké
+	if userID > 0 {
+		var exists bool
+		err := r.db.Table("likes").Select("count(*) > 0").Where("post_id = ? AND user_id = ?", postID, userID).Find(&exists).Error
+		if err != nil {
+			return nil, err
+		}
+		stats.UserHasLiked = exists
+	}
+
+	return stats, nil
+}
+
+// GetPostsWithStats convertit les posts en PostDTO avec statistiques
+func (r *repository) GetPostsWithStats(posts []*Post, userID uint) ([]*PostDTO, error) {
+	if len(posts) == 0 {
+		return []*PostDTO{}, nil
+	}
+
+	result := make([]*PostDTO, 0, len(posts))
+
+	for _, post := range posts {
+
+		// Récupérer les statistiques
+		stats, err := r.GetPostStats(post.ID, userID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Récupérer les URLs des médias
+		mediaURLs := make([]string, len(post.Media))
+		for i, media := range post.Media {
+			mediaURLs[i] = media.MediaURL
+		}
+
+		// Récupérer les infos du créateur
+		var creator *CreatorInfo
+		creatorInfo, err := r.GetCreatorInfo(post.CreatorID)
+		if err == nil {
+			creator = creatorInfo
+		}
+
+		postDTO := &PostDTO{
+			ID:           post.ID,
+			CreatorID:    post.CreatorID,
+			Content:      post.Content,
+			Visibility:   string(post.Visibility),
+			DocumentType: post.DocumentType,
+			CreatedAt:    post.CreatedAt,
+			UpdatedAt:    post.UpdatedAt,
+			MediaURLs:    mediaURLs,
+			LikeCount:    stats.LikeCount,
+			CommentCount: stats.CommentCount,
+			UserHasLiked: stats.UserHasLiked,
+			Creator:      creator,
+		}
+
+		result = append(result, postDTO)
+	}
+
+	return result, nil
+}
+
+// GetCreatorInfo récupère les informations du créateur d'un post
+func (r *repository) GetCreatorInfo(userID uint) (*CreatorInfo, error) {
+	var user userModel.User // adapte selon ton modèle utilisateur
+	if err := r.db.First(&user, userID).Error; err != nil {
+		return nil, err
+	}
+	return &CreatorInfo{
+		ID:        user.ID,
+		Username:  user.Username,
+		FullName:  user.FullName,
+		AvatarURL: user.AvatarURL,
+	}, nil
+}
+
+func (r *repository) CountMediaByType(mediaType string) (int64, error) {
+	var count int64
+	err := r.db.Model(&media.Media{}).Where("media_type = ?", mediaType).Count(&count).Error
+	return count, err
 }
