@@ -2,49 +2,41 @@ package post
 
 import (
 	"backend/internal/media"
-	"fmt"
-	"github.com/gin-gonic/gin"
 	"log"
 	"mime/multipart"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
-// Structure principale du gestionnaire HTTP
+// Handler structure
 type Handler struct {
 	service Service
 }
 
-// Créer une nouvelle instance du gestionnaire
+// NewHandler instancie un gestionnaire de route
 func NewHandler(s Service) *Handler {
-	// Vérifier la sécurité du dossier uploads au démarrage
 	if err := checkUploadsDirectorySecurity(); err != nil {
-		log.Printf("⚠️ AVERTISSEMENT: Problème avec le dossier uploads: %v", err)
-		log.Printf("⚠️ Les téléchargements de fichiers pourraient ne pas fonctionner correctement")
+		log.Printf("⚠️ Problème dossier uploads: %v", err)
 	}
-
 	return &Handler{service: s}
 }
 
-// Enregistrer les routes du gestionnaire
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	posts := rg.Group("/posts")
 
-	// Routes principales
 	posts.POST("/", h.CreatePost)
 	posts.GET("/", h.GetAllPosts)
 	posts.GET("/:id", h.GetPostByID)
 	posts.PUT("/:id", h.UpdatePost)
 	posts.DELETE("/:id", h.DeletePost)
 
-	// Statistiques
 	posts.GET("/media/stats", h.GetMediaStats)
 }
 
-// Retourne les clés d'une map comme slice de string
+// Utilitaire: extraire les clés du form
 func getMapKeys(m map[string][]*multipart.FileHeader) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -53,272 +45,177 @@ func getMapKeys(m map[string][]*multipart.FileHeader) []string {
 	return keys
 }
 
-// --- HANDLERS DES ROUTES ---
-
-// Créer un nouveau post
+// POST /posts : Créer un post
 func (h *Handler) CreatePost(c *gin.Context) {
 	userID := c.GetInt("user_id")
-	log.Printf("📝 Création post par utilisateur ID: %d", userID)
-
-	content := c.PostForm("content")
-	visibility := c.PostForm("visibility")
-	documentType := c.PostForm("document_type") // Type de document (cours, devoir, support, etc.)
-	log.Printf("📝 Contenu: '%s', Visibilité: %s, Type document: %s", content, visibility, documentType)
-
-	if visibility != string(Public) && visibility != string(Private) {
-		log.Printf("❌ Visibilité invalide: %s", visibility)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid visibility value"})
-		return
-	}
-
-	// Journaliser les types MIME acceptés
-	log.Printf("📋 Content-Type: %s", c.GetHeader("Content-Type"))
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<30) // 2GB max
 
 	form, err := c.MultipartForm()
 	if err != nil {
-		log.Printf("❌ Erreur lors de la lecture du formulaire multipart: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form data"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Formulaire invalide (taille max dépassée ?)"})
 		return
 	}
 
-	// Journaliser les clés présentes dans le formulaire
-	log.Printf("🔑 Clés dans le formulaire: %v", getMapKeys(form.File))
+	getFirst := func(m map[string][]string, key string) string {
+		if v, ok := m[key]; ok && len(v) > 0 {
+			return v[0]
+		}
+		return ""
+	}
+	content := getFirst(form.Value, "content")
+	visibility := getFirst(form.Value, "visibility")
+	documentType := getFirst(form.Value, "document_type")
 
 	images := form.File["images"]
 	videos := form.File["video"]
 	documents := form.File["documents"]
 
-	log.Printf("🖼️ Nombre d'images: %d", len(images))
-	log.Printf("🎬 Nombre de vidéos: %d", len(videos))
-	log.Printf("📄 Nombre de documents: %d", len(documents))
-
-	// Vérifier les combinaisons de médias non autorisées
-	mediaTypes := 0
-	if len(images) > 0 {
-		mediaTypes++
-	}
-	if len(videos) > 0 {
-		mediaTypes++
-	}
-	if len(documents) > 0 {
-		mediaTypes++
+	if visibility != string(Public) && visibility != string(Private) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Visibility invalide"})
+		return
 	}
 
-	if mediaTypes > 1 {
-		log.Printf("❌ Tentative d'upload de plusieurs types de médias simultanément")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot upload different media types in one post (images, videos, or documents)"})
+	// Restrictions combinées
+	if (len(images) > 0 && len(videos) > 0) || (len(images) > 0 && len(documents) > 0) || (len(videos) > 0 && len(documents) > 0) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Types médias multiples non autorisés (image OU vidéo OU document)"})
 		return
 	}
 	if len(images) > 10 {
-		log.Printf("❌ Trop d'images: %d (max 10)", len(images))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Maximum 10 images allowed"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Maximum 10 images autorisées"})
 		return
 	}
 	if len(videos) > 1 {
-		log.Printf("❌ Trop de vidéos: %d (max 1)", len(videos))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only one video allowed"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Une seule vidéo autorisée"})
 		return
 	}
 	if len(documents) > 5 {
-		log.Printf("❌ Trop de documents: %d (max 5)", len(documents))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Maximum 5 documents allowed"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Maximum 5 documents autorisés"})
 		return
 	}
 
 	var medias []media.Media
 
-	// Traiter les images
-	if len(images) > 0 {
-		for _, img := range images {
-			log.Printf("🖼️ Traitement image: %s, taille: %d bytes, type MIME: %s",
-				img.Filename, img.Size, img.Header.Get("Content-Type"))
-
-			isValid, _ := isUnderSize(img, 10*1024*1024)
-			if !isValidImage(img.Filename) || !isValid {
-				log.Printf("❌ Format ou taille d'image invalide: %s (%d bytes)", img.Filename, img.Size)
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format or size (max 10MB)"})
-				return
-			}
-			path, _, fileSize, err := saveFile(uint(userID), img)
-			if err != nil {
-				log.Printf("❌ Échec de la sauvegarde de l'image: %v", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image"})
-				return
-			}
-			log.Printf("✅ Image enregistrée à: %s", path)
-			medias = append(medias, media.Media{MediaURL: path, MediaType: "image", FileSize: fileSize})
+	// Images
+	for _, img := range images {
+		if !IsValidImage(img.Filename) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Format image invalide"})
+			return
 		}
+		if !IsUnderSize(img, 100*1024*1024) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Image trop lourde (max 100MB)"})
+			return
+		}
+		path, _, fileSize, err := saveFile(uint(userID), img)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur sauvegarde image"})
+			return
+		}
+		medias = append(medias, media.Media{MediaURL: path, MediaType: "image", FileSize: fileSize})
 	}
 
-	// Traiter les documents
-	if len(documents) > 0 {
-		for _, doc := range documents {
-			log.Printf("📄 DÉBUT TRAITEMENT DOCUMENT ==================================================")
-			log.Printf("📄 Nom du fichier: %s", doc.Filename)
-			log.Printf("📄 Taille: %d bytes (%.2f MB)", doc.Size, float64(doc.Size)/(1024*1024))
-			log.Printf("📄 Type MIME: %s", doc.Header.Get("Content-Type"))
-
-			// Vérification de l'extension
-			if !isValidDocument(doc.Filename) {
-				formats := strings.Join(getDocumentFormatList(), ", ")
-				log.Printf("❌ Format document invalide: %s - Les formats acceptés sont %s",
-					strings.ToLower(filepath.Ext(doc.Filename)), formats)
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error":           fmt.Sprintf("Format document invalide - Les formats acceptés sont %s", formats),
-					"detected_format": strings.ToLower(filepath.Ext(doc.Filename)),
-					"filename":        doc.Filename,
-				})
-				return
-			}
-
-			// Vérification de la taille
-			if doc.Size > 20*1024*1024 {
-				log.Printf("❌ Taille document trop grande: %.2f MB (max 20MB)", float64(doc.Size)/(1024*1024))
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Document size exceeds maximum allowed (20MB)"})
-				return
-			}
-
-			// Vérification de la qualité éducative du document
-			valid, message := validateEducationalDocumentQuality(doc)
-			if !valid {
-				log.Printf("❌ Document ne respecte pas les critères de qualité: %s", message)
-				c.JSON(http.StatusBadRequest, gin.H{"error": message})
-				return
-			}
-
-			// Analyser les informations du document
-			docInfo := getDocumentInfo(doc)
-			log.Printf("📄 Information document: Format=%s, Taille=%.2fMB, Type=%s, PDF=%v",
-				docInfo.Format, float64(docInfo.FileSize)/(1024*1024), docInfo.Category, docInfo.IsPDF)
-
-			// Enregistrer le document
-			path, _, fileSize, err := saveFile(uint(userID), doc)
-			if err != nil {
-				log.Printf("❌ Échec de la sauvegarde du document: %v", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save document"})
-				return
-			}
-			log.Printf("✅ Document enregistré à: %s", path)
-			medias = append(medias, media.Media{MediaURL: path, MediaType: "document", FileSize: fileSize})
-			log.Printf("📄 FIN TRAITEMENT DOCUMENT ==================================================")
+	// Documents
+	for _, doc := range documents {
+		if !IsValidDocument(doc.Filename) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Format document invalide"})
+			return
 		}
+		if !IsUnderSize(doc, 200*1024*1024) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Document trop lourd (max 200MB)"})
+			return
+		}
+		path, _, fileSize, err := saveFile(uint(userID), doc)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur sauvegarde document"})
+			return
+		}
+		medias = append(medias, media.Media{MediaURL: path, MediaType: "document", FileSize: fileSize})
 	}
 
-	// Traiter les vidéos
+	// Vidéo
 	if len(videos) == 1 {
 		video := videos[0]
-		log.Printf("🎬 DÉBUT TRAITEMENT VIDÉO ==================================================")
-		log.Printf("🎬 Nom du fichier: %s", video.Filename)
-		log.Printf("🎬 Taille: %d bytes (%.2f MB)", video.Size, float64(video.Size)/(1024*1024))
-		log.Printf("🎬 Type MIME: %s", video.Header.Get("Content-Type"))
-
-		// Vérification de l'extension
-		if !isValidVideo(video.Filename) {
-			log.Printf("❌ Format vidéo invalide: %s - Les formats acceptés sont .mp4, .mov, .webm",
-				strings.ToLower(filepath.Ext(video.Filename)))
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":           "Format vidéo invalide - Les formats acceptés sont .mp4, .mov, .webm",
-				"detected_format": strings.ToLower(filepath.Ext(video.Filename)),
-				"filename":        video.Filename,
-			})
+		if !IsValidVideo(video.Filename) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Format vidéo invalide"})
 			return
 		}
-
-		// Vérification de la taille
-		if video.Size > 100*1024*1024 {
-			log.Printf("❌ Taille vidéo trop grande: %.2f MB (max 100MB)", float64(video.Size)/(1024*1024))
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Video size exceeds maximum allowed (100MB)"})
+		if !IsUnderSize(video, 2*1024*1024*1024) { // 2GB max pour la vidéo
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Vidéo trop lourde (max 2GB)"})
 			return
 		}
-
-		// Enregistrer la vidéo
 		path, _, fileSize, err := saveFile(uint(userID), video)
 		if err != nil {
-			log.Printf("❌ Échec de la sauvegarde de la vidéo: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save video"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur sauvegarde vidéo"})
 			return
 		}
-
-		log.Printf("✅ Vidéo enregistrée avec succès à %s", path)
-		log.Printf("🎬 FIN TRAITEMENT VIDÉO =====================================================")
-
-		// Ajouter au média
 		medias = append(medias, media.Media{MediaURL: path, MediaType: "video", FileSize: fileSize})
 	}
 
-	// Créer le post
-	post := Post{
-		CreatorID:    uint(userID),
+	input := CreatePostInput{
 		Content:      content,
 		Visibility:   Visibility(visibility),
 		DocumentType: documentType,
-		CreatedAt:    time.Now(),
 		Media:        medias,
 	}
 
-	log.Printf("📝 Tentative de création du post: %d médias attachés", len(medias))
-	if err := h.service.CreatePost(&post); err != nil {
+	postDTO, err := h.service.CreatePost(uint(userID), input)
+	if err != nil {
 		status := http.StatusInternalServerError
-		if strings.Contains(err.Error(), "invalid") {
+		if strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "invalide") {
 			status = http.StatusBadRequest
 		}
-		log.Printf("❌ Échec de la création du post: %v", err)
 		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
-	log.Printf("✅ Post créé avec succès! ID: %d", post.ID)
-	c.JSON(http.StatusCreated, post)
+
+	c.JSON(http.StatusCreated, postDTO)
 }
 
-// Récupérer tous les posts
-func (h *Handler) GetAllPosts(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	visibility := c.Query("visibility")
-
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 50 {
-		pageSize = 10
-	}
-
-	posts, err := h.service.GetAllPosts(page, pageSize, Visibility(visibility))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, posts)
-}
-
-// Récupérer un post par son ID
+// GET /posts/:id
 func (h *Handler) GetPostByID(c *gin.Context) {
-	// Convertir l'ID de la route en nombre
-	postID, err := strconv.Atoi(c.Param("id"))
+	userID := c.GetInt("user_id")
+	postID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de post invalide"})
 		return
 	}
-
-	// Récupérer le post depuis le service
-	post, err := h.service.GetPostByID(uint(postID))
+	post, err := h.service.GetPostByID(uint(postID), uint(userID))
 	if err != nil {
-		statusCode := http.StatusInternalServerError
-
-		// Si le post n'existe pas
-		if strings.Contains(err.Error(), "record not found") {
-			statusCode = http.StatusNotFound
+		status := http.StatusInternalServerError
+		if err.Error() == "post non trouvé" {
+			status = http.StatusNotFound
 		}
-
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
-
-	// Retourner le post
 	c.JSON(http.StatusOK, post)
 }
 
-// Mettre à jour un post existant
+// GET /posts
+func (h *Handler) GetAllPosts(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	posts, total, err := h.service.GetAllPosts(page, limit, uint(userID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	totalPages := (int(total) + limit - 1) / limit
+	c.JSON(http.StatusOK, gin.H{
+		"posts": posts,
+		"pagination": gin.H{
+			"page":        page,
+			"limit":       limit,
+			"total":       total,
+			"total_pages": totalPages,
+			"has_next":    page < totalPages,
+			"has_prev":    page > 1,
+		},
+	})
+}
+
+// PUT /posts/:id
 func (h *Handler) UpdatePost(c *gin.Context) {
 	postID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -333,57 +230,47 @@ func (h *Handler) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UpdatePost(uint(postID), uint(userID), input); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	postDTO, err := h.service.UpdatePost(uint(postID), uint(userID), input)
+	if err != nil {
+		status := http.StatusForbidden
+		if strings.Contains(err.Error(), "post non trouvé") {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, postDTO)
 }
 
-// Supprimer un post
+// DELETE /posts/:id
 func (h *Handler) DeletePost(c *gin.Context) {
-	postID, _ := strconv.Atoi(c.Param("id"))
-	userID := c.GetInt("user_id")
-
-	log.Printf("🗑️ Tentative de suppression du post ID %d par utilisateur ID %d", postID, userID)
-
-	if err := h.service.DeletePost(uint(postID), uint(userID)); err != nil {
-		log.Printf("❌ Échec de la suppression du post ID %d: %v", postID, err)
-
-		// Déterminer le code d'état approprié
-		statusCode := http.StatusForbidden
-		if strings.Contains(err.Error(), "record not found") {
-			statusCode = http.StatusNotFound
-		} else if strings.Contains(err.Error(), "failed to delete media") {
-			statusCode = http.StatusInternalServerError
-		}
-
-		c.JSON(statusCode, gin.H{"error": err.Error()})
+	postID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid post ID"})
 		return
 	}
+	userID := c.GetInt("user_id")
 
-	log.Printf("✅ Post ID %d supprimé avec succès", postID)
+	if err := h.service.DeletePost(uint(postID), uint(userID)); err != nil {
+		status := http.StatusForbidden
+		if strings.Contains(err.Error(), "post non trouvé") {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
 	c.Status(http.StatusNoContent)
 }
 
-// Obtenir des statistiques sur les médias
+// GET /posts/media/stats
 func (h *Handler) GetMediaStats(c *gin.Context) {
-	// Récupérer les statistiques sur les médias par type
-	stats, err := h.service.GetMediaStatistics()
-	if err != nil {
-		log.Printf("❌ Erreur lors de la récupération des statistiques des médias: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve media statistics"})
+	statistics, recommendations := h.service.GetMediaStatistics()
+	if statistics == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve media stats"})
 		return
 	}
-
-	// Ajouter des recommandations pour les formats
-	recommendations := getRecommendedFormats()
-
-	// Préparer la réponse
-	response := gin.H{
-		"statistics":      stats,
+	c.JSON(http.StatusOK, gin.H{
+		"statistics":      statistics,
 		"recommendations": recommendations,
-	}
-
-	c.JSON(http.StatusOK, response)
+	})
 }

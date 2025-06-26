@@ -1,7 +1,7 @@
 package media
 
 type Media struct {
-	ID           uint `gorm:"primaryKey"`
+	ID           uint `gorm:"primaryKey;autoIncrement"`
 	PostID       uint
 	MediaURL     string
 	MediaType    string

@@ -169,6 +169,12 @@ func main() {
 		commentHandler := comment.NewHandler(commentService)
 		commentHandler.RegisterRoutes(api)
 
+		// 💖 Routes likes
+		likeRepo := like.NewRepository(db.GormDB)
+		likeService := like.NewService(likeRepo, postRepo)
+		likeHandler := like.NewHandler(likeService)
+		likeHandler.RegisterRoutes(api)
+
 		log.Printf("✅ Routes API protégées configurées")
 	}
 
