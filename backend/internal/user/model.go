@@ -2,7 +2,6 @@ package user
 
 import (
 	"backend/internal/message"
-	"backend/internal/post"
 	"backend/internal/subscription"
 	"time"
 )
@@ -15,12 +14,12 @@ type User struct {
 	Name          string                      `gorm:"uniqueIndex" json:"name" example:"Hammami"`
 	FirstName     string                      `gorm:"uniqueIndex" json:"first_name" example:"Haithem"`
 	Bio           string                      `json:"bio" example:"Étudiant à l’EEMI et dev fullstack"`
-	AvatarURL     string                      `json:"avatar_url" example:"https://cdn.thinkshare/avatar.jpg"`
+	AvatarURL     string                      `gorm:"column:avatar_url" json:"avatar_url" example:"https://cdn.thinkshare/avatar.jpg"`
 	Email         string                      `gorm:"uniqueIndex" json:"email" example:"haithem@example.com"`
 	PasswordHash  string                      `json:"-"`
 	Role          string                      `json:"role" example:"user"`
 	CreatedAt     time.Time                   `json:"created_at" example:"2024-01-01T15:04:05Z"`
-	Posts         []post.Post                 `gorm:"foreignKey:CreatorID" json:"posts,omitempty"`
+	Posts         []UserPost                  `gorm:"foreignKey:CreatorID" json:"posts,omitempty"`
 	Subscriptions []subscription.Subscription `gorm:"foreignKey:SubscriberID" json:"subscriptions,omitempty"`
 	MessagesSent  []message.Message           `gorm:"foreignKey:SenderID" json:"messages_sent,omitempty"`
 	MessagesRecv  []message.Message           `gorm:"foreignKey:ReceiverID" json:"messages_recv,omitempty"`
@@ -44,4 +43,10 @@ type UpdateUserInput struct {
 	FullName  string `json:"full_name" example:"Haithem Hammami"`
 	Bio       string `json:"bio" example:"Développeur Go, passionné par l'éducation"`
 	AvatarURL string `json:"avatar_url" example:"https://cdn.thinkshare/avatar.jpg"`
+}
+
+// Define a minimal Post struct for GORM relation if needed
+type UserPost struct {
+	ID        uint
+	CreatorID uint
 }
