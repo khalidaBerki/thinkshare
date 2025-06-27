@@ -179,6 +179,12 @@ func main() {
 		likeHandler := like.NewHandler(likeService)
 		likeHandler.RegisterRoutes(api)
 
+		// 📩 Routes messagerie privée
+		messageRepo := message.NewRepository(db.GormDB)
+		messageService := message.NewService(messageRepo, db.GormDB)
+		messageHandler := message.NewHandler(messageService)
+		messageHandler.RegisterRoutes(api)
+
 		log.Printf("✅ Routes API protégées configurées")
 	}
 
