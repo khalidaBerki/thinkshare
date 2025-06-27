@@ -70,6 +70,16 @@ func (m *MockPostRepository) CountMediaByType(mediaType string) (int64, error) {
 	return args.Get(0).(int64), args.Error(1)
 }
 
+func (m *MockPostRepository) GetAllAfter(afterID uint, limit int) ([]*post.Post, error) {
+	args := m.Called(afterID, limit)
+	return args.Get(0).([]*post.Post), args.Error(1)
+}
+
+func (m *MockPostRepository) GetByCreatorAfter(creatorID, afterID uint, limit int) ([]*post.Post, error) {
+	args := m.Called(creatorID, afterID, limit)
+	return args.Get(0).([]*post.Post), args.Error(1)
+}
+
 // --- Tests ---
 
 func TestCreatePost_Success(t *testing.T) {
@@ -265,4 +275,24 @@ func TestDeletePost_Unauthorized(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "non autorisé")
 	mockRepo.AssertNotCalled(t, "Delete")
+}
+
+func TestGetPostsByCreatorAfter_Success(t *testing.T) {
+	mockRepo := new(MockPostRepository)
+	service := post.NewService(mockRepo)
+
+	posts := []*post.Post{
+		{ID: 31, CreatorID: 2, Content: "post 1", Visibility: post.Public},
+		{ID: 32, CreatorID: 2, Content: "post 2", Visibility: post.Public},
+	}
+	mockRepo.On("GetByCreatorAfter", uint(2), uint(30), 2).Return(posts, nil)
+	mockRepo.On("GetPostsWithStats", posts, uint(1)).Return([]*post.PostDTO{
+		{ID: 31, CreatorID: 2, Content: "post 1", Visibility: string(post.Public)},
+		{ID: 32, CreatorID: 2, Content: "post 2", Visibility: string(post.Public)},
+	}, nil)
+
+	result, err := service.GetPostsByCreatorAfter(2, 30, 2, 1)
+	assert.NoError(t, err)
+	assert.Len(t, result, 2)
+	mockRepo.AssertExpectations(t)
 }

@@ -24,7 +24,6 @@ func (m *MockPostRepository) Create(post *post.Post) error {
 	args := m.Called(post)
 	return args.Error(0)
 }
-
 func (m *MockPostRepository) GetByID(id uint) (*post.Post, error) {
 	args := m.Called(id)
 	if args.Get(0) == nil {
@@ -32,75 +31,62 @@ func (m *MockPostRepository) GetByID(id uint) (*post.Post, error) {
 	}
 	return args.Get(0).(*post.Post), args.Error(1)
 }
-
 func (m *MockPostRepository) GetAll(page, limit int) ([]*post.Post, int64, error) {
 	args := m.Called(page, limit)
 	return args.Get(0).([]*post.Post), args.Get(1).(int64), args.Error(2)
 }
-
 func (m *MockPostRepository) GetByCreatorID(creatorID uint, page, limit int) ([]*post.Post, int64, error) {
 	args := m.Called(creatorID, page, limit)
 	return args.Get(0).([]*post.Post), args.Get(1).(int64), args.Error(2)
 }
-
 func (m *MockPostRepository) Update(post *post.Post) error {
 	args := m.Called(post)
 	return args.Error(0)
 }
-
 func (m *MockPostRepository) Delete(id uint) error {
 	args := m.Called(id)
 	return args.Error(0)
 }
-
 func (m *MockPostRepository) GetPostStats(postID, userID uint) (*post.PostStats, error) {
 	args := m.Called(postID, userID)
 	return args.Get(0).(*post.PostStats), args.Error(1)
 }
-
 func (m *MockPostRepository) GetPostsWithStats(posts []*post.Post, userID uint) ([]*post.PostDTO, error) {
 	args := m.Called(posts, userID)
 	return args.Get(0).([]*post.PostDTO), args.Error(1)
 }
-
 func (m *MockPostRepository) GetCreatorInfo(userID uint) (*post.CreatorInfo, error) {
 	args := m.Called(userID)
 	return args.Get(0).(*post.CreatorInfo), args.Error(1)
 }
-
 func (m *MockPostRepository) CountMediaByType(mediaType string) (int64, error) {
 	args := m.Called(mediaType)
 	return args.Get(0).(int64), args.Error(1)
 }
+func (m *MockPostRepository) GetAllAfter(afterID uint, limit int) ([]*post.Post, error) {
+	args := m.Called(afterID, limit)
+	return args.Get(0).([]*post.Post), args.Error(1)
+}
+func (m *MockPostRepository) GetByCreatorAfter(creatorID, afterID uint, limit int) ([]*post.Post, error) {
+	args := m.Called(creatorID, afterID, limit)
+	return args.Get(0).([]*post.Post), args.Error(1)
+}
 
-// Configuration du router pour les tests d'intégration
+// --- Setup router ---
 func setupPostRouter() (*gin.Engine, *post.Handler, *MockPostRepository) {
-	// Configuration du mode de test pour Gin
 	gin.SetMode(gin.TestMode)
-
-	// Initialisation des mocks
 	mockRepo := new(MockPostRepository)
 	postService := post.NewService(mockRepo)
 	postHandler := post.NewHandler(postService)
-
-	// Création du router
-	r := gin.New() // Utiliser gin.New() au lieu de gin.Default() pour éviter les logs
-
-	// Middleware pour simuler un utilisateur authentifié
+	r := gin.New()
 	r.Use(func(c *gin.Context) {
-		c.Set("user_id", 1) // Utilisateur de test avec ID 1
+		c.Set("user_id", 1)
 		c.Next()
 	})
-
-	// Désactiver les redirections pour les tests
 	r.RedirectTrailingSlash = false
-	// Désactiver la correction automatique des URLs
 	r.RedirectFixedPath = false
-
-	// Enregistrement des routes
 	api := r.Group("/api")
 	postHandler.RegisterRoutes(api)
-
 	return r, postHandler, mockRepo
 }
 
@@ -264,12 +250,12 @@ func TestIntegration_GetAllPosts(t *testing.T) {
 		})
 	}
 
-	// Configurer le mock pour simuler la récupération des posts et des stats
-	mockRepo.On("GetAll", 1, mock.AnythingOfType("int")).Return(testPosts, int64(len(testPosts)), nil)
+	// Mock scroll infini
+	mockRepo.On("GetAllAfter", uint(0), mock.AnythingOfType("int")).Return(testPosts, nil)
 	mockRepo.On("GetPostsWithStats", testPosts, uint(1)).Return(testDTOs, nil)
 
 	// Créer une requête GET pour récupérer tous les posts
-	req, _ := http.NewRequest("GET", "/api/posts/?page=1&pageSize=10", nil)
+	req, _ := http.NewRequest("GET", "/api/posts?limit=10", nil)
 
 	// Exécuter la requête
 	w := httptest.NewRecorder()
@@ -281,8 +267,7 @@ func TestIntegration_GetAllPosts(t *testing.T) {
 
 	// Vérifier la réponse
 	var response struct {
-		Pagination map[string]interface{} `json:"pagination"`
-		Posts      []*post.PostDTO        `json:"posts"`
+		Posts []*post.PostDTO `json:"posts"`
 	}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
@@ -462,4 +447,58 @@ func getRecommendedFormats() map[string]interface{} {
 			"preferred": ".pdf",
 		},
 	}
+}
+
+func TestGetAllPostsAfter_Success(t *testing.T) {
+	mockRepo := new(MockPostRepository)
+	service := post.NewService(mockRepo)
+
+	posts := []*post.Post{
+		{ID: 21, CreatorID: 1, Content: "suite 1", Visibility: post.Public},
+		{ID: 22, CreatorID: 1, Content: "suite 2", Visibility: post.Public},
+	}
+	mockRepo.On("GetAllAfter", uint(20), 2).Return(posts, nil)
+	mockRepo.On("GetPostsWithStats", posts, uint(1)).Return([]*post.PostDTO{
+		{ID: 21, CreatorID: 1, Content: "suite 1", Visibility: string(post.Public)},
+		{ID: 22, CreatorID: 1, Content: "suite 2", Visibility: string(post.Public)},
+	}, nil)
+
+	result, err := service.GetAllPostsAfter(20, 2, 1)
+	assert.NoError(t, err)
+	assert.Len(t, result, 2)
+	mockRepo.AssertExpectations(t)
+}
+
+// Test de récupération de tous les posts après un certain ID
+// --- Test scroll infini /api/posts ---
+func TestIntegration_GetAllPostsAfter(t *testing.T) {
+	r, _, mockRepo := setupPostRouter()
+
+	// Simule des posts à retourner après l'ID 20
+	posts := []*post.Post{
+		{ID: 21, CreatorID: 1, Content: "suite 1", Visibility: post.Public},
+		{ID: 22, CreatorID: 1, Content: "suite 2", Visibility: post.Public},
+	}
+	mockRepo.On("GetAllAfter", uint(20), 2).Return(posts, nil)
+	mockRepo.On("GetPostsWithStats", posts, uint(1)).Return([]*post.PostDTO{
+		{ID: 21, CreatorID: 1, Content: "suite 1", Visibility: string(post.Public)},
+		{ID: 22, CreatorID: 1, Content: "suite 2", Visibility: string(post.Public)},
+	}, nil)
+
+	// Requête GET avec after=20&limit=2
+	req, _ := http.NewRequest("GET", "/api/posts?after=20&limit=2", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var response struct {
+		Posts   []*post.PostDTO `json:"posts"`
+		HasMore bool            `json:"has_more"`
+		LastID  uint            `json:"last_id"`
+	}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Len(t, response.Posts, 2)
+	assert.Equal(t, uint(22), response.LastID)
+	mockRepo.AssertExpectations(t)
 }
