@@ -13,6 +13,8 @@ type Service interface {
 	UpdatePost(postID, creatorID uint, input UpdatePostInput) (*PostDTO, error)
 	DeletePost(postID, creatorID uint) error
 	GetMediaStatistics() (interface{}, interface{})
+	GetAllPostsAfter(afterID uint, limit int, userID uint) ([]*PostDTO, error)
+	GetPostsByCreatorAfter(creatorID, afterID uint, limit int, userID uint) ([]*PostDTO, error)
 }
 
 type service struct {
@@ -202,4 +204,20 @@ func (s *service) DeletePost(postID, creatorID uint) error {
 		return errors.New("non autorisé")
 	}
 	return s.repo.Delete(postID)
+}
+
+func (s *service) GetAllPostsAfter(afterID uint, limit int, userID uint) ([]*PostDTO, error) {
+	posts, err := s.repo.GetAllAfter(afterID, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetPostsWithStats(posts, userID)
+}
+
+func (s *service) GetPostsByCreatorAfter(creatorID, afterID uint, limit int, userID uint) ([]*PostDTO, error) {
+	posts, err := s.repo.GetByCreatorAfter(creatorID, afterID, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetPostsWithStats(posts, userID)
 }

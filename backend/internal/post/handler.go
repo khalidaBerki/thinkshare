@@ -28,7 +28,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	posts := rg.Group("/posts")
 
 	posts.POST("/", h.CreatePost)
-	posts.GET("/", h.GetAllPosts)
+	posts.GET("", h.GetAllPosts)
+	posts.GET("/user/:id", h.GetPostsByUser) // Posts d'un utilisateur spécifique
 	posts.GET("/:id", h.GetPostByID)
 	posts.PUT("/:id", h.UpdatePost)
 	posts.DELETE("/:id", h.DeletePost)
@@ -193,25 +194,24 @@ func (h *Handler) GetPostByID(c *gin.Context) {
 // GET /posts
 func (h *Handler) GetAllPosts(c *gin.Context) {
 	userID := c.GetInt("user_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	afterID, _ := strconv.Atoi(c.DefaultQuery("after", "0"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20")) // on garder un limit pour éviter de tout charger
 
-	posts, total, err := h.service.GetAllPosts(page, limit, uint(userID))
+	posts, err := h.service.GetAllPostsAfter(uint(afterID), limit, uint(userID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	totalPages := (int(total) + limit - 1) / limit
+	hasMore := len(posts) == limit
 	c.JSON(http.StatusOK, gin.H{
-		"posts": posts,
-		"pagination": gin.H{
-			"page":        page,
-			"limit":       limit,
-			"total":       total,
-			"total_pages": totalPages,
-			"has_next":    page < totalPages,
-			"has_prev":    page > 1,
-		},
+		"posts":    posts,
+		"has_more": hasMore,
+		"last_id": func() uint {
+			if len(posts) > 0 {
+				return posts[len(posts)-1].ID
+			}
+			return 0
+		}(),
 	})
 }
 
@@ -272,5 +272,34 @@ func (h *Handler) GetMediaStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"statistics":      statistics,
 		"recommendations": recommendations,
+	})
+}
+
+// GET /posts/user/:id
+func (h *Handler) GetPostsByUser(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	creatorID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || creatorID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+	afterID, _ := strconv.Atoi(c.DefaultQuery("after", "0"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	posts, err := h.service.GetPostsByCreatorAfter(uint(creatorID), uint(afterID), limit, uint(userID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	hasMore := len(posts) == limit
+	c.JSON(http.StatusOK, gin.H{
+		"posts":    posts,
+		"has_more": hasMore,
+		"last_id": func() uint {
+			if len(posts) > 0 {
+				return posts[len(posts)-1].ID
+			}
+			return 0
+		}(),
 	})
 }
