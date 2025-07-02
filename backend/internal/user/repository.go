@@ -30,7 +30,19 @@ func UpdateUserProfile(id uint, input UpdateUserInput) error {
 		"bio":        input.Bio,
 		"avatar_url": input.AvatarURL,
 	}
+	// Ajout de la mise à jour du prix si fourni
+	if input.MonthlyPrice > 0 {
+		updates["monthly_price"] = input.MonthlyPrice
+	}
+	// Ajout de la mise à jour du price_id Stripe si fourni
+	if input.StripePriceID != "" {
+		updates["stripe_price_id"] = input.StripePriceID
+	}
 
 	result = db.GormDB.Model(&user).Updates(updates)
 	return result.Error
+}
+
+func UpdateUserMonthlyPrice(id uint, price float64) error {
+	return db.GormDB.Model(&User{}).Where("id = ?", id).Update("monthly_price", price).Error
 }

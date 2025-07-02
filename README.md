@@ -34,5 +34,3 @@ thinkshare/backend/
 ├── go.sum
 └── README.md
 
-PECeemi2025§
-PECeemi2025§

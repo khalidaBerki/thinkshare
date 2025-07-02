@@ -16,6 +16,8 @@ import (
 	"backend/internal/like"
 	"backend/internal/media"
 	"backend/internal/message"
+	"backend/internal/models"
+	"backend/internal/payment"
 	"backend/internal/post"
 	"backend/internal/postaccess"
 	"backend/internal/subscription"
@@ -48,7 +50,7 @@ func main() {
 		{"comments", &comment.Comment{}},
 		{"likes", &like.Like{}},
 		{"media", &media.Media{}},
-		{"subscriptions", &subscription.Subscription{}},
+		{"subscriptions", &models.Subscription{}},
 		{"messages", &message.Message{}},
 		{"postaccess", &postaccess.PostAccess{}},
 	}
@@ -150,16 +152,21 @@ func main() {
 		log.Printf("🔧 Routes de debug activées (mode développement)")
 	}
 
+	// Initialiser Stripe
+	payment.InitStripe()
+
 	// 🔐 Routes API protégées
 	api := r.Group("/api", auth.AuthMiddleware())
 	{
 		// 👤 Routes utilisateur
 		api.GET("/profile", user.GetProfileHandler)
 		api.PUT("/profile", user.UpdateProfileHandler)
-		api.POST("/subscribe", auth.AuthMiddleware(), subscription.SubscribeHandler)
-		api.POST("/unsubscribe", auth.AuthMiddleware(), subscription.UnsubscribeHandler)
-		r.GET("/api/followers/:id", auth.AuthMiddleware(), subscription.GetFollowersByUserHandler)
-		r.GET("/api/subscriptions", auth.AuthMiddleware(), subscription.GetMySubscriptionsHandler)
+		// Stripe abonnement payant
+		api.POST("/subscribe/paid", subscription.SubscribePaidStripeHandler)
+		api.POST("/subscribe", subscription.SubscribeHandler)
+		api.POST("/unsubscribe", subscription.UnsubscribeHandler)
+		r.GET("/api/followers/:id", subscription.GetFollowersByUserHandler)
+		r.GET("/api/subscriptions", subscription.GetMySubscriptionsHandler)
 
 		// 📝 Routes posts
 		postRepo := post.NewRepository()
@@ -181,6 +188,9 @@ func main() {
 
 		log.Printf("✅ Routes API protégées configurées")
 	}
+
+	// Route webhook Stripe (publique)
+	r.POST("/stripe/webhook", payment.StripeWebhookHandler)
 
 	// Port dynamique
 	port := os.Getenv("PORT")
