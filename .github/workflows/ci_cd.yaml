@@ -58,6 +58,7 @@ jobs:
       PGUSER: test
       PGPASSWORD: test
       PGDATABASE: testdb
+      PGSSLMODE: disable
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
