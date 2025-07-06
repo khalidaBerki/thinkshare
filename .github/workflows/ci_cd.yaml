@@ -160,7 +160,7 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
-            azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
+            azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
 
       - name: Terraform Apply
         run: |
