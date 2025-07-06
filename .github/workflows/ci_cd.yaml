@@ -48,7 +48,6 @@ jobs:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
           POSTGRES_DB: testdb
-          PGSSLMODE: disable
         ports:
           - 5432:5432
         options: >-
@@ -59,7 +58,6 @@ jobs:
       PGUSER: test
       PGPASSWORD: test
       PGDATABASE: testdb
-      PGSSLMODE: disable
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
