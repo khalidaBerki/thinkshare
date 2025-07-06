@@ -4,7 +4,7 @@ on:
   push:
     branches: [ terraform, main ]
   pull_request:
-    branches: [ main, terraform]
+    branches: [ main,terraform]
 
 jobs:
   lint:
