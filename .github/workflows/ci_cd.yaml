@@ -131,4 +131,4 @@ jobs:
         run: cd backend/infra/terraform && terraform init
 
       - name: Terraform Apply
-        run: cd backend/infra/terraform && terraform apply -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}"
+        run: cd backend/infra/terraform && terraform apply -auto-approve -var="db_password=${{ secrets.DB_PASSWORD }}" -var="jwt_secret=${{ secrets.JWT_SECRET }}"
