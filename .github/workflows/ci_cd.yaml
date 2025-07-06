@@ -130,6 +130,16 @@ jobs:
       - name: Terraform Init
         run: cd backend/infra/terraform && terraform init
 
+      - name: Terraform Import Resource Group
+        run: |
+          cd backend/infra/terraform
+          terraform import azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources
+
+      - name: Terraform Import PostgreSQL Flexible Server
+        run: |
+          cd backend/infra/terraform
+          terraform import azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
+
       - name: Terraform Apply
         run: |
           cd backend/infra/terraform
