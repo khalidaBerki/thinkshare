@@ -134,14 +134,32 @@ jobs:
         run: |
           cd backend/infra/terraform
           terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
             azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources
 
       - name: Terraform Import PostgreSQL Flexible Server
         run: |
           cd backend/infra/terraform
           terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
             azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
 
       - name: Terraform Apply
