@@ -1,0 +1,22 @@
+# Terraform state
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Variables sensibles
+terraform.tfvars
+*.tfvars
+
+# Lock file (optionnel, utile pour la CI/CD)
+# .terraform.lock.hcl
+
+# Logs et binaires
+*.log
+*.exe
+*.bin
+*.dll
+*.so
+*.pyc
+__pycache__/
+.env
+.env.*
