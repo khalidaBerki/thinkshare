@@ -67,45 +67,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 }
 
-# Récupération des secrets depuis Key Vault
-
-data "azurerm_key_vault_secret" "port" {
-  name         = "PORT"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "gin_mode" {
-  name         = "GIN-MODE"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "jwt_secret" {
-  name         = "JWT-SECRET"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pghost" {
-  name         = "PGHOST"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pguser" {
-  name         = "PGUSER"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pgport" {
-  name         = "PGPORT"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pgdatabase" {
-  name         = "PGDATABASE"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pgpassword" {
-  name         = "PGPASSWORD"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pgsslmode" {
-  name         = "PGSSLMODE"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-
 # Variables complémentaires
 variable "jwt_secret" {
   description = "Secret JWT pour l'API"
