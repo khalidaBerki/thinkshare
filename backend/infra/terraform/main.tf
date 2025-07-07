@@ -43,78 +43,28 @@ resource "azurerm_postgresql_flexible_server" "db" {
   public_network_access_enabled = true
 }
 
-resource "azurerm_container_group" "app" {
-  name                = "${var.prefix}-container"
-  location            = var.location
+# Ajout du cluster AKS le moins cher
+resource "azurerm_kubernetes_cluster" "aks" {
+  name                = "${var.prefix}-aks"
+  location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
+  dns_prefix          = "${var.prefix}-aks"
 
-  ip_address_type = "Public"
-  dns_name_label  = "${var.prefix}api"  # Public DNS prefix pour le container
-
-  os_type = "Linux"
-
-  container {
-    name   = "thinkshare-backend"
-    image  = "khalidaber/thinkshare-backend:v1"
-    cpu    = 1.0
-    memory = 1.5
-
-    ports {
-      port     = 8080
-      protocol = "TCP"
-    }
-
-    environment_variables = {
-      "PORT"        = data.azurerm_key_vault_secret.port.value
-      "GIN_MODE"    = data.azurerm_key_vault_secret.gin_mode.value
-      "JWT_SECRET"  = data.azurerm_key_vault_secret.jwt_secret.value
-      "PGHOST"      = data.azurerm_key_vault_secret.pghost.value
-      "PGUSER"      = data.azurerm_key_vault_secret.pguser.value
-      "PGPORT"      = data.azurerm_key_vault_secret.pgport.value
-      "PGDATABASE"  = data.azurerm_key_vault_secret.pgdatabase.value
-      "PGPASSWORD"  = data.azurerm_key_vault_secret.pgpassword.value
-      "PGSSLMODE"   = data.azurerm_key_vault_secret.pgsslmode.value
-    }
+  default_node_pool {
+    name       = "default"
+    node_count = 1
+    vm_size    = "Standard_B2s" # Le plus petit VM size possible
+    os_disk_size_gb = 30
   }
-}
 
-# Récupération des secrets depuis Key Vault
+  identity {
+    type = "SystemAssigned"
+  }
 
-data "azurerm_key_vault_secret" "port" {
-  name         = "PORT"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "gin_mode" {
-  name         = "GIN-MODE"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "jwt_secret" {
-  name         = "JWT-SECRET"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pghost" {
-  name         = "PGHOST"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pguser" {
-  name         = "PGUSER"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pgport" {
-  name         = "PGPORT"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pgdatabase" {
-  name         = "PGDATABASE"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pgpassword" {
-  name         = "PGPASSWORD"
-  key_vault_id = azurerm_key_vault.vault.id
-}
-data "azurerm_key_vault_secret" "pgsslmode" {
-  name         = "PGSSLMODE"
-  key_vault_id = azurerm_key_vault.vault.id
+  network_profile {
+    network_plugin = "kubenet"
+    load_balancer_sku = "standard"
+  }
 }
 
 # Variables complémentaires
@@ -158,12 +108,8 @@ variable "key_vault_sku" {
   default     = "standard"
 }
 
-output "container_fqdn" {
-  description = "FQDN (URL) du container Azure pour accès HTTP"
-  value       = azurerm_container_group.app.fqdn
-}
-
-output "swagger_url" {
-  description = "URL complète pour accéder à Swagger sur le backend"
-  value       = "http://${azurerm_container_group.app.fqdn}:8080/swagger/index.html"
+output "aks_node_public_ip" {
+  description = "IP publique du nœud AKS pour accès à Swagger via NodePort"
+  value = azurerm_kubernetes_cluster.aks.default_node_pool[0].node_public_ip_prefix_id
+  # Note : Pour obtenir l'IP publique réelle, il faudra utiliser 'kubectl get nodes -o wide' après déploiement
 }

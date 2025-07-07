@@ -2,9 +2,9 @@ name: CI CD Thinkshare Backend
 
 on:
   push:
-    branches: [ terraform, main ]
+    branches: [ kubernetes, main ]
   pull_request:
-    branches: [ main,terraform]
+    branches: [ main,kubernetes]
 
 jobs:
   lint:
@@ -76,7 +76,7 @@ jobs:
   docker-build-backend:
     name: Build Docker image (Backend)
     runs-on: ubuntu-latest
-    needs: unit-test
+    needs: [unit-test, integration-test]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -178,7 +178,7 @@ jobs:
             -var="prefix=${{ secrets.PREFIX }}" \
             azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv
 
-      - name: Terraform Import Container Group
+      - name: Terraform Import AKS Cluster
         run: |
           cd backend/infra/terraform
           terraform import \
@@ -192,7 +192,7 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
-            azurerm_container_group.app /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerInstance/containerGroups/${{ secrets.PREFIX }}-container
+            azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
 
       - name: Terraform Apply
         run: |
@@ -208,3 +208,46 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}"
+
+  k8s-deploy:
+    name: Deploy to AKS (Kubernetes)
+    runs-on: ubuntu-latest
+    needs: [docker-build-backend, terraform-deploy]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Get AKS credentials
+        run: az aks get-credentials --resource-group MonGroupeRessources --name pec2-aks --overwrite-existing
+
+      - name: Ensure k8s manifest directory exists
+        run: mkdir -p backend/infra/k8s
+
+      - name: Generate K8s Secret manifest from GitHub secrets
+        run: |
+          kubectl create secret generic thinkshare-secrets \
+            --from-literal=jwt_secret="${{ secrets.JWT_SECRET }}" \
+            --from-literal=pg_host="${{ secrets.PG_HOST }}" \
+            --from-literal=db_admin="${{ secrets.DB_ADMIN }}" \
+            --from-literal=db_password="${{ secrets.DB_PASSWORD }}" \
+            --from-literal=db_name="${{ secrets.DB_NAME }}" \
+            --from-literal=pg_port="${{ secrets.PG_PORT }}" \
+            --from-literal=pg_sslmode="${{ secrets.PGSSLMODE }}" \
+            --from-literal=gin_mode="${{ secrets.GIN_MODE }}" \
+            --dry-run=client -o yaml > backend/infra/k8s/thinkshare-secrets.yaml
+
+      - name: Deploy manifests
+        run: kubectl apply -f backend/infra/k8s/
+
+      - name: Check rollout status
+        run: kubectl rollout status deployment/thinkshare-backend
