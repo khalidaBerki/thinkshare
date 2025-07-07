@@ -2,6 +2,7 @@ package comment
 
 import (
 	"backend/internal/post"
+	"backend/internal/user"
 	"errors"
 	"time"
 )
@@ -19,17 +20,18 @@ type Service interface {
 	DeleteComment(userID, commentID uint) error
 }
 
-// service implémentation de Service
 type service struct {
 	repo     Repository
 	postRepo PostRepository
+	userRepo user.UserRepository
 }
 
 // NewService crée une nouvelle instance du service
-func NewService(repo Repository, postRepo PostRepository) Service {
+func NewService(repo Repository, postRepo PostRepository, userRepo user.UserRepository) Service {
 	return &service{
 		repo:     repo,
 		postRepo: postRepo,
+		userRepo: userRepo,
 	}
 }
 
@@ -54,45 +56,69 @@ func (s *service) CreateComment(userID uint, req CreateCommentRequest) (*Comment
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-
 	if err := s.repo.Create(comment); err != nil {
 		return nil, errors.New("erreur lors de la création du commentaire")
 	}
 
-	response := comment.ToResponse()
+	userObj, _ := s.userRepo.GetByID(userID)
+	username := "Inconnu"
+	avatar := ""
+	if userObj != nil {
+		username = userObj.Username
+		avatar = userObj.AvatarURL
+	}
+	response := CommentResponse{
+		ID:        comment.ID,
+		PostID:    comment.PostID,
+		UserID:    comment.UserID,
+		Username:  username,
+		AvatarURL: avatar,
+		Text:      comment.Text,
+		CreatedAt: comment.CreatedAt,
+		UpdatedAt: comment.UpdatedAt,
+	}
 	return &response, nil
 }
 
 // GetCommentsByPostID récupère les commentaires d'un post avec pagination
 func (s *service) GetCommentsByPostID(postID uint, page, limit int) ([]CommentResponse, int64, error) {
-	// Valeurs par défaut pour la pagination
 	if page <= 0 {
 		page = 1
 	}
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
-
 	offset := (page - 1) * limit
 
-	// Récupérer les commentaires
 	comments, err := s.repo.GetByPostID(postID, limit, offset)
 	if err != nil {
 		return nil, 0, errors.New("erreur lors de la récupération des commentaires")
 	}
-
-	// Compter le total
 	total, err := s.repo.CountByPostID(postID)
 	if err != nil {
 		return nil, 0, errors.New("erreur lors du comptage des commentaires")
 	}
 
-	// Convertir en réponses
 	responses := make([]CommentResponse, len(comments))
 	for i, comment := range comments {
-		responses[i] = comment.ToResponse()
+		userObj, _ := s.userRepo.GetByID(comment.UserID)
+		username := "Inconnu"
+		avatar := ""
+		if userObj != nil {
+			username = userObj.Username
+			avatar = userObj.AvatarURL
+		}
+		responses[i] = CommentResponse{
+			ID:        comment.ID,
+			PostID:    comment.PostID,
+			UserID:    comment.UserID,
+			Username:  username,
+			AvatarURL: avatar,
+			Text:      comment.Text,
+			CreatedAt: comment.CreatedAt,
+			UpdatedAt: comment.UpdatedAt,
+		}
 	}
-
 	return responses, total, nil
 }
 
@@ -117,12 +143,27 @@ func (s *service) UpdateComment(userID, commentID uint, req UpdateCommentRequest
 	// Mettre à jour le commentaire
 	comment.Text = req.Text
 	comment.UpdatedAt = time.Now()
-
 	if err := s.repo.Update(comment); err != nil {
 		return nil, errors.New("erreur lors de la mise à jour du commentaire")
 	}
 
-	response := comment.ToResponse()
+	userObj, _ := s.userRepo.GetByID(userID)
+	username := "Inconnu"
+	avatar := ""
+	if userObj != nil {
+		username = userObj.Username
+		avatar = userObj.AvatarURL
+	}
+	response := CommentResponse{
+		ID:        comment.ID,
+		PostID:    comment.PostID,
+		UserID:    comment.UserID,
+		Username:  username,
+		AvatarURL: avatar,
+		Text:      comment.Text,
+		CreatedAt: comment.CreatedAt,
+		UpdatedAt: comment.UpdatedAt,
+	}
 	return &response, nil
 }
 

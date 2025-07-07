@@ -2,6 +2,7 @@ package comment
 
 import (
 	_ "backend/internal/postaccess"
+	_ "os/user"
 	"time"
 )
 
@@ -26,24 +27,14 @@ type UpdateCommentRequest struct {
 	Text string `json:"text" binding:"required,min=1,max=1000"`
 }
 
-// CommentResponse DTO pour la réponse
+// CommentResponse DTO pour la réponse enrichie
 type CommentResponse struct {
 	ID        uint      `json:"id"`
 	PostID    uint      `json:"post_id"`
 	UserID    uint      `json:"user_id"`
+	Username  string    `json:"username"`
+	AvatarURL string    `json:"avatar_url"`
 	Text      string    `json:"text"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-}
-
-// ToResponse convertit un Comment en CommentResponse
-func (c *Comment) ToResponse() CommentResponse {
-	return CommentResponse{
-		ID:        c.ID,
-		PostID:    c.PostID,
-		UserID:    c.UserID,
-		Text:      c.Text,
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
-	}
 }

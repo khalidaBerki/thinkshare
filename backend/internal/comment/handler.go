@@ -7,17 +7,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Handler gestionnaire HTTP pour les commentaires
+// Handler HTTP for comments
 type Handler struct {
 	service Service
 }
 
-// NewHandler crée une nouvelle instance du handler
 func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
-// RegisterRoutes enregistre les routes du handler
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	comments := rg.Group("/comments")
 
@@ -28,67 +26,56 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	comments.DELETE("/:id", h.DeleteComment)        // DELETE /api/comments/:id
 }
 
-// CreateComment crée un nouveau commentaire
+// CreateComment creates a new comment
 func (h *Handler) CreateComment(c *gin.Context) {
-	// 🔧 FIX : Utiliser GetInt au lieu de GetUint
 	userID := c.GetInt("user_id")
 	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentification requise"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
-
-	// Lire les données de la requête
 	var req CreateCommentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Données de requête invalides", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data", "details": err.Error()})
 		return
 	}
-
-	// Créer le commentaire - conversion uint nécessaire pour le service
 	comment, err := h.service.CreateComment(uint(userID), req)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err.Error() == "post non trouvé" {
 			status = http.StatusNotFound
+			c.JSON(status, gin.H{"error": "Post not found"})
+			return
 		} else if err.Error() == "utilisateur non authentifié" {
 			status = http.StatusUnauthorized
+			c.JSON(status, gin.H{"error": "Authentication required"})
+			return
 		}
-
-		c.JSON(status, gin.H{"error": err.Error()})
+		c.JSON(status, gin.H{"error": "Failed to create comment"})
 		return
 	}
-
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Commentaire créé avec succès",
+		"message": "Comment created successfully",
 		"comment": comment,
 	})
 }
 
-// GetCommentsByPostID récupère les commentaires d'un post
+// GetCommentsByPostID retrieves comments for a post
 func (h *Handler) GetCommentsByPostID(c *gin.Context) {
-	// Récupérer l'ID du post
 	postID, err := strconv.ParseUint(c.Param("postID"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de post invalide"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid post ID"})
 		return
 	}
-
-	// Récupérer les paramètres de pagination
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-
-	// Récupérer les commentaires
 	comments, total, err := h.service.GetCommentsByPostID(uint(postID), page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve comments"})
 		return
 	}
-
-	// Calculer les informations de pagination
 	totalPages := (int(total) + limit - 1) / limit
 	hasNext := page < totalPages
 	hasPrev := page > 1
-
 	c.JSON(http.StatusOK, gin.H{
 		"comments": comments,
 		"pagination": gin.H{
@@ -102,84 +89,82 @@ func (h *Handler) GetCommentsByPostID(c *gin.Context) {
 	})
 }
 
-// UpdateComment met à jour un commentaire
+// UpdateComment updates a comment
 func (h *Handler) UpdateComment(c *gin.Context) {
-	// 🔧 FIX : Utiliser GetInt au lieu de GetUint
 	userID := c.GetInt("user_id")
 	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentification requise"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
-
-	// Récupérer l'ID du commentaire
 	commentID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de commentaire invalide"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid comment ID"})
 		return
 	}
-
-	// Lire les données de la requête
 	var req UpdateCommentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Données de requête invalides", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data", "details": err.Error()})
 		return
 	}
-
-	// Mettre à jour le commentaire - conversion uint nécessaire pour le service
 	comment, err := h.service.UpdateComment(uint(userID), uint(commentID), req)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if err.Error() == "commentaire non trouvé" {
+		switch err.Error() {
+		case "commentaire non trouvé":
 			status = http.StatusNotFound
-		} else if err.Error() == "vous n'êtes pas autorisé à modifier ce commentaire" {
+			c.JSON(status, gin.H{"error": "Comment not found"})
+			return
+		case "vous n'êtes pas autorisé à modifier ce commentaire":
 			status = http.StatusForbidden
-		} else if err.Error() == "utilisateur non authentifié" {
+			c.JSON(status, gin.H{"error": "You are not allowed to edit this comment"})
+			return
+		case "utilisateur non authentifié":
 			status = http.StatusUnauthorized
+			c.JSON(status, gin.H{"error": "Authentication required"})
+			return
 		}
-
-		c.JSON(status, gin.H{"error": err.Error()})
+		c.JSON(status, gin.H{"error": "Failed to update comment"})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Commentaire mis à jour avec succès",
+		"message": "Comment updated successfully",
 		"comment": comment,
 	})
 }
 
-// DeleteComment supprime un commentaire
+// DeleteComment deletes a comment
 func (h *Handler) DeleteComment(c *gin.Context) {
-	// 🔧 FIX : Utiliser GetInt au lieu de GetUint
 	userID := c.GetInt("user_id")
 	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentification requise"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
-
-	// Récupérer l'ID du commentaire
 	commentID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de commentaire invalide"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid comment ID"})
 		return
 	}
-
-	// Supprimer le commentaire - conversion uint nécessaire pour le service
 	if err := h.service.DeleteComment(uint(userID), uint(commentID)); err != nil {
 		status := http.StatusInternalServerError
-		if err.Error() == "commentaire non trouvé" {
+		switch err.Error() {
+		case "commentaire non trouvé":
 			status = http.StatusNotFound
-		} else if err.Error() == "vous n'êtes pas autorisé à supprimer ce commentaire" {
+			c.JSON(status, gin.H{"error": "Comment not found"})
+			return
+		case "vous n'êtes pas autorisé à supprimer ce commentaire":
 			status = http.StatusForbidden
-		} else if err.Error() == "utilisateur non authentifié" {
+			c.JSON(status, gin.H{"error": "You are not allowed to delete this comment"})
+			return
+		case "utilisateur non authentifié":
 			status = http.StatusUnauthorized
+			c.JSON(status, gin.H{"error": "Authentication required"})
+			return
 		}
-
-		c.JSON(status, gin.H{"error": err.Error()})
+		c.JSON(status, gin.H{"error": "Failed to delete comment"})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Commentaire supprimé avec succès",
+		"message": "Comment deleted successfully",
 		"id":      commentID,
 	})
 }

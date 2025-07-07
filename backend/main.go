@@ -170,7 +170,8 @@ func main() {
 
 		// 💬 Routes commentaires
 		commentRepo := comment.NewRepository(db.GormDB)
-		commentService := comment.NewService(commentRepo, postRepo)
+		userRepo := user.NewRepository()
+		commentService := comment.NewService(commentRepo, postRepo, userRepo)
 		commentHandler := comment.NewHandler(commentService)
 		commentHandler.RegisterRoutes(api)
 

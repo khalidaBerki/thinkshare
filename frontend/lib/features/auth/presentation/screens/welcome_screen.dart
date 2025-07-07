@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -175,7 +176,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         padding: buttonPadding,
                       ),
                       onPressed: () {
-                        Navigator.pushNamed(context, '/login');
+                        context.go('/login');
                       },
                       child: const Text('SIGN IN'),
                     ),
@@ -197,7 +198,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         padding: buttonPadding,
                       ),
                       onPressed: () {
-                        Navigator.pushNamed(context, '/register');
+                        context.go('/register');
                       },
                       child: const Text('REGISTER'),
                     ),
