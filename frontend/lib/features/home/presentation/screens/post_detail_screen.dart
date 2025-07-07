@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+
 import 'package:go_router/go_router.dart';
 import '../widgets/media_carousel.dart';
+import '../widgets/comment_section.dart';
 import '../../data/home_repository.dart';
 
 class PostDetailScreen extends StatefulWidget {
@@ -16,11 +19,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Map<String, dynamic>? post;
   bool isLoading = true;
   final HomeRepository _repository = HomeRepository();
+  late bool hasLiked;
+  late int likeCount;
+
+  List<Map<String, dynamic>> comments = [];
+  bool isCommentsLoading = false;
 
   @override
   void initState() {
     super.initState();
     _loadPost();
+    _loadComments();
   }
 
   Future<void> _loadPost() async {
@@ -29,6 +38,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       setState(() {
         post = data;
         isLoading = false;
+        hasLiked = post?['user_has_liked'] == true;
+        likeCount = post?['like_count'] ?? 0;
       });
     } catch (e) {
       debugPrint('Failed to load post detail: $e');
@@ -36,6 +47,80 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         isLoading = false;
       });
     }
+  }
+
+  Future<void> _toggleLike() async {
+    setState(() {
+      hasLiked = !hasLiked;
+      likeCount += hasLiked ? 1 : -1;
+    });
+    await _repository.toggleLike(widget.postId);
+  }
+
+  Future<void> _loadComments() async {
+    setState(() => isCommentsLoading = true);
+    final data = await _repository.getComments(widget.postId);
+    setState(() {
+      comments = List<Map<String, dynamic>>.from(data['comments']);
+      isCommentsLoading = false;
+    });
+  }
+
+  Future<void> _addComment(String text) async {
+    try {
+      final data = await _repository.addComment(widget.postId, text);
+      final newComment = Map<String, dynamic>.from(data['comment']);
+      setState(() {
+        comments.insert(0, newComment);
+      });
+    } catch (e) {
+      _showError(context, e.toString());
+    }
+  }
+
+  Future<void> _editComment(String commentId, String text) async {
+    try {
+      final data = await _repository.updateComment(commentId, text);
+      final updated = Map<String, dynamic>.from(data['comment']);
+      setState(() {
+        final idx = comments.indexWhere((c) => c['id'].toString() == commentId);
+        if (idx != -1) comments[idx] = updated;
+      });
+    } catch (e) {
+      _showError(context, _extractApiError(e));
+    }
+  }
+
+  Future<void> _deleteComment(String commentId) async {
+    try {
+      await _repository.deleteComment(commentId);
+      setState(() {
+        comments.removeWhere((c) => c['id'].toString() == commentId);
+      });
+    } catch (e) {
+      _showError(context, _extractApiError(e));
+    }
+  }
+
+  void _showError(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  // Optionnel : pour extraire le message d'erreur de l'API (si Dio ou http)
+  String _extractApiError(Object error) {
+    if (error is DioError) {
+      try {
+        final data = error.response?.data;
+        if (data is Map && data['error'] != null) {
+          return data['error'].toString();
+        }
+      } catch (_) {}
+      return error.message ?? 'Erreur inconnue';
+    }
+    // Sinon, retourne le message brut
+    return error.toString();
   }
 
   @override
@@ -62,7 +147,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
             } else {
-              context.go('/home'); // route fallback
+              context.go('/home');
             }
           },
         ),
@@ -155,14 +240,28 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             const SizedBox(height: 20),
             Row(
               children: [
-                Icon(Icons.star, color: colorScheme.primary),
-                const SizedBox(width: 4),
-                Text('${post!['like_count'] ?? 0}'),
+                IconButton(
+                  icon: Icon(
+                    hasLiked ? Icons.star : Icons.star_border,
+                    color: colorScheme.primary,
+                  ),
+                  onPressed: _toggleLike,
+                ),
+                Text('$likeCount'),
                 const SizedBox(width: 16),
                 Icon(Icons.mode_comment_outlined, color: colorScheme.primary),
                 const SizedBox(width: 4),
                 Text('${post!['comment_count'] ?? 0}'),
               ],
+            ),
+            const SizedBox(height: 20),
+
+            CommentSection(
+              comments: comments,
+              isLoading: isCommentsLoading,
+              onAddComment: _addComment,
+              onEditComment: _editComment,
+              onDeleteComment: _deleteComment,
             ),
           ],
         ),

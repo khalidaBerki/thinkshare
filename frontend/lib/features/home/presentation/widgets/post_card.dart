@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart'; // Pour Clipboard
 import 'media_carousel.dart';
+import '../../../../config/api_config.dart';
+import 'package:provider/provider.dart';
+import '../../presentation/providers/home_provider.dart';
 
 class PostCard extends StatelessWidget {
   final Map<String, dynamic> post;
@@ -41,8 +44,8 @@ class PostCard extends StatelessWidget {
                   child: CircleAvatar(
                     backgroundImage: NetworkImage(
                       creator['avatar_url']?.isNotEmpty == true
-                          ? 'https://www.thinkshare.com/${creator['avatar_url']}'
-                          : 'https://ui-avatars.com/api/?name=${creator['full_name'] ?? 'User'}',
+                          ? '${ApiConfig.baseUrl}${creator['avatar_url']}'
+                          : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(creator['full_name'] ?? 'User')}',
                     ),
                     radius: 24,
                   ),
@@ -122,8 +125,13 @@ class PostCard extends StatelessWidget {
                             : Icons.star_border,
                         color: colorScheme.primary,
                       ),
-                      onPressed: () {
-                        // TODO: Like action
+                      onPressed: () async {
+                        final provider = Provider.of<HomeProvider>(
+                          context,
+                          listen: false,
+                        );
+                        await provider.toggleLike(post['id'].toString());
+                        // Optionnel : tu peux aussi faire un setState local pour plus de réactivité
                       },
                     ),
                     Text('${post['like_count'] ?? 0}'),
@@ -140,7 +148,11 @@ class PostCard extends StatelessWidget {
                     Text('${post['comment_count'] ?? 0}'),
                     const Spacer(),
                     IconButton(
-                      icon: Icon(Icons.share, color: colorScheme.primary, size: 22),
+                      icon: Icon(
+                        Icons.share,
+                        color: colorScheme.primary,
+                        size: 22,
+                      ),
                       onPressed: () async {
                         final url = 'https://www.thinkshare.com/post/$postId';
                         await Clipboard.setData(ClipboardData(text: url));
@@ -150,7 +162,11 @@ class PostCard extends StatelessWidget {
                               content: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: const [
-                                  Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                    size: 18,
+                                  ),
                                   SizedBox(width: 8),
                                   Text('Url copied'),
                                 ],
@@ -158,13 +174,18 @@ class PostCard extends StatelessWidget {
                               backgroundColor: Colors.grey[900],
                               behavior: SnackBarBehavior.floating,
                               margin: const EdgeInsets.only(
-                                bottom: 60, right: 20, left: 20,
+                                bottom: 60,
+                                right: 20,
+                                left: 20,
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               duration: const Duration(seconds: 1),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                             ),
                           );
                         }
