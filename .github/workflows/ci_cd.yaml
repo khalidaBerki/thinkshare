@@ -76,7 +76,7 @@ jobs:
   docker-build-backend:
     name: Build Docker image (Backend)
     runs-on: ubuntu-latest
-    needs: unit-test
+    needs: [unit-test, integration-test]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
