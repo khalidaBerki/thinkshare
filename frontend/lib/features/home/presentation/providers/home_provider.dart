@@ -34,4 +34,16 @@ class HomeProvider extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
   }
+
+  Future<void> toggleLike(String postId) async {
+    final index = posts.indexWhere((p) => p['id'].toString() == postId);
+    if (index != -1) {
+      final post = posts[index];
+      final hasLiked = post['user_has_liked'] == true;
+      post['user_has_liked'] = !hasLiked;
+      post['like_count'] = (post['like_count'] ?? 0) + (hasLiked ? -1 : 1);
+      notifyListeners();
+    }
+    await _repository.toggleLike(postId);
+  }
 }

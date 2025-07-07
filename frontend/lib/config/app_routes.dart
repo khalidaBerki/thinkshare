@@ -3,8 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/screens/entry_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
-import '../features/home/presentation/screens/feed_screen.dart';
+//import '../features/home/presentation/screens/feed_screen.dart';
 import '../features/home/presentation/screens/post_detail_screen.dart';
+import '../core/widgets/navigation.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -18,7 +19,10 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const RegisterScreen(),
     ),
 
-    GoRoute(path: '/home', builder: (context, state) => const FeedScreen()),
+    GoRoute(
+      path: '/home',
+      builder: (context, state) => const NavigationScreen(),
+    ),
 
     GoRoute(
       path: '/post/:id',

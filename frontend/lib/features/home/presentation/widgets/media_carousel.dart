@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../config/api_config.dart';
 
 class MediaCarousel extends StatelessWidget {
   final List<String> mediaUrls;
@@ -17,7 +18,7 @@ class MediaCarousel extends StatelessWidget {
         itemBuilder: (context, index) {
           final url = mediaUrls[index].replaceAll('\\', '/');
           final ext = url.split('.').last.toLowerCase();
-          final fullUrl = 'https://www.thinkshare.com/$url';
+          final fullUrl = '${ApiConfig.baseUrl}$url';
 
           if (['png', 'jpg', 'jpeg', 'gif', 'webp'].contains(ext)) {
             // Image
