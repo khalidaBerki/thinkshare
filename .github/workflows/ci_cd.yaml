@@ -212,7 +212,7 @@ jobs:
   k8s-deploy:
     name: Deploy to AKS (Kubernetes)
     runs-on: ubuntu-latest
-    needs: docker-build-backend
+    needs: [docker-build-backend, terraform-deploy]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
