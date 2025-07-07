@@ -34,3 +34,19 @@ func UpdateUserProfile(id uint, input UpdateUserInput) error {
 	result = db.GormDB.Model(&user).Updates(updates)
 	return result.Error
 }
+
+// UserRepository interface
+type UserRepository interface {
+	GetByID(id uint) (*User, error)
+}
+
+// repository implémentation
+type repository struct{}
+
+func NewRepository() UserRepository {
+	return &repository{}
+}
+
+func (r *repository) GetByID(id uint) (*User, error) {
+	return GetUserByID(id)
+}

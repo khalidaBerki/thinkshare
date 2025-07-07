@@ -85,7 +85,7 @@ func (r *repository) GetAll(page, limit int) ([]*Post, int64, error) {
 
 	// Récupérer les posts avec pagination
 	offset := (page - 1) * limit
-	err := r.db.Preload("Media").Order("created_at DESC").Offset(offset).Limit(limit).Find(&posts).Error
+	err := r.db.Preload("Media").Order("id DESC").Offset(offset).Limit(limit).Find(&posts).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -246,9 +246,9 @@ func (r *repository) CountMediaByType(mediaType string) (int64, error) {
 // Récupère tous les posts après un certain ID (scroll infini)
 func (r *repository) GetAllAfter(afterID uint, limit int) ([]*Post, error) {
 	var posts []*Post
-	query := r.db.Preload("Media").Order("id ASC").Limit(limit)
+	query := r.db.Preload("Media").Order("id DESC").Limit(limit)
 	if afterID > 0 {
-		query = query.Where("id > ?", afterID)
+		query = query.Where("id < ?", afterID)
 	}
 	err := query.Find(&posts).Error
 	return posts, err
