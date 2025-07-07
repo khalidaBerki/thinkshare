@@ -1,0 +1,210 @@
+name: CI CD Thinkshare Backend
+
+on:
+  push:
+    branches: [ terraform, main ]
+  pull_request:
+    branches: [ main,terraform]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install dependencies
+        run: cd backend && go mod download
+      - name: Lint
+        run: cd backend && go install golang.org/x/lint/golint@latest && golint ./...
+
+  unit-test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install dependencies
+        run: cd backend && go mod download
+      - name: Run unit tests
+        run: cd backend && go test -v ./tests/unit/...
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-test
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: test
+      PGPASSWORD: test
+      PGDATABASE: testdb
+      PGSSLMODE: disable
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install dependencies
+        run: cd backend && go mod download
+      - name: Debug env
+        run: env | grep PG
+      - name: Run integration tests
+        run: cd backend && go test -v ./tests/integration/...
+
+  docker-build-backend:
+    name: Build Docker image (Backend)
+    runs-on: ubuntu-latest
+    needs: unit-test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t thinkshare-backend:latest ./backend
+      - name: Tag Docker image as v1
+        run: docker tag thinkshare-backend:latest ${{ secrets.DOCKERHUB_USERNAME }}/thinkshare-backend:V1
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push Docker image v1
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/thinkshare-backend:V1
+
+  docker-build-frontend:
+    name: Build Docker image (Frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t thinkshare-frontend:latest ./frontend
+      # Décommenter pour push sur Docker Hub
+      # - name: Login to DockerHub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}.DOCKERHUB_TOKEN }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - name: Push Docker image      #   run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/thinkshare-frontend:V1
+
+
+      #   run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/thinkshare-frontend:V1
+
+  terraform-deploy:
+    name: Deploy on Azure with Terraform
+    runs-on: ubuntu-latest
+    needs: docker-build-backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init
+        run: cd backend/infra/terraform && terraform init
+
+      - name: Terraform Import Resource Group
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
+            azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources
+
+      - name: Terraform Import PostgreSQL Flexible Server
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
+            azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
+
+      - name: Terraform Import Key Vault
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
+            azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv
+
+      - name: Terraform Import Container Group
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
+            azurerm_container_group.app /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerInstance/containerGroups/${{ secrets.PREFIX }}-container
+
+      - name: Terraform Apply
+        run: |
+          cd backend/infra/terraform
+          terraform apply -auto-approve \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}"

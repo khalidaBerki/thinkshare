@@ -1,0 +1,169 @@
+resource "azurerm_resource_group" "rg" {
+  name     = "MonGroupeRessources"
+  location = var.location
+}
+
+resource "azurerm_key_vault" "vault" {
+  name                        = "${var.prefix}-kv"
+  location                    = var.location
+  resource_group_name         = azurerm_resource_group.rg.name
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
+  sku_name                    = var.key_vault_sku
+  purge_protection_enabled    = false
+  enabled_for_disk_encryption = true
+  enabled_for_deployment      = true
+  enabled_for_template_deployment = true
+
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = data.azurerm_client_config.current.object_id
+
+    secret_permissions = [
+      "Get",
+      "List",
+      "Set"
+    ]
+  }
+}
+
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_postgresql_flexible_server" "db" {
+  name                   = "pec-2"
+  resource_group_name    = "pec2"  # <-- doit pointer ici
+  location               = var.location
+  administrator_login    = var.db_admin
+  administrator_password = var.db_password
+  version                = "13"
+  storage_mb             = 32768
+  sku_name               = "B_Standard_B1ms"
+  zone                   = "1"
+  backup_retention_days  = 7
+  geo_redundant_backup_enabled = false
+  public_network_access_enabled = true
+}
+
+resource "azurerm_container_group" "app" {
+  name                = "${var.prefix}-container"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  ip_address_type = "Public"
+  dns_name_label  = "${var.prefix}api"  # Public DNS prefix pour le container
+
+  os_type = "Linux"
+
+  container {
+    name   = "thinkshare-backend"
+    image  = "khalidaber/thinkshare-backend:v1"
+    cpu    = 1.0
+    memory = 1.5
+
+    ports {
+      port     = 8080
+      protocol = "TCP"
+    }
+
+    environment_variables = {
+      "PORT"        = data.azurerm_key_vault_secret.port.value
+      "GIN_MODE"    = data.azurerm_key_vault_secret.gin_mode.value
+      "JWT_SECRET"  = data.azurerm_key_vault_secret.jwt_secret.value
+      "PGHOST"      = data.azurerm_key_vault_secret.pghost.value
+      "PGUSER"      = data.azurerm_key_vault_secret.pguser.value
+      "PGPORT"      = data.azurerm_key_vault_secret.pgport.value
+      "PGDATABASE"  = data.azurerm_key_vault_secret.pgdatabase.value
+      "PGPASSWORD"  = data.azurerm_key_vault_secret.pgpassword.value
+      "PGSSLMODE"   = data.azurerm_key_vault_secret.pgsslmode.value
+    }
+  }
+}
+
+# Récupération des secrets depuis Key Vault
+
+data "azurerm_key_vault_secret" "port" {
+  name         = "PORT"
+  key_vault_id = azurerm_key_vault.vault.id
+}
+data "azurerm_key_vault_secret" "gin_mode" {
+  name         = "GIN-MODE"
+  key_vault_id = azurerm_key_vault.vault.id
+}
+data "azurerm_key_vault_secret" "jwt_secret" {
+  name         = "JWT-SECRET"
+  key_vault_id = azurerm_key_vault.vault.id
+}
+data "azurerm_key_vault_secret" "pghost" {
+  name         = "PGHOST"
+  key_vault_id = azurerm_key_vault.vault.id
+}
+data "azurerm_key_vault_secret" "pguser" {
+  name         = "PGUSER"
+  key_vault_id = azurerm_key_vault.vault.id
+}
+data "azurerm_key_vault_secret" "pgport" {
+  name         = "PGPORT"
+  key_vault_id = azurerm_key_vault.vault.id
+}
+data "azurerm_key_vault_secret" "pgdatabase" {
+  name         = "PGDATABASE"
+  key_vault_id = azurerm_key_vault.vault.id
+}
+data "azurerm_key_vault_secret" "pgpassword" {
+  name         = "PGPASSWORD"
+  key_vault_id = azurerm_key_vault.vault.id
+}
+data "azurerm_key_vault_secret" "pgsslmode" {
+  name         = "PGSSLMODE"
+  key_vault_id = azurerm_key_vault.vault.id
+}
+
+# Variables complémentaires
+variable "jwt_secret" {
+  description = "Secret JWT pour l'API"
+  type        = string
+}
+
+variable "pg_host" {
+  description = "FQDN du serveur PostgreSQL"
+  type        = string
+}
+
+variable "port" {
+  description = "Port d'écoute de l'application"
+  type        = string
+  default     = "8080"
+}
+
+variable "gin_mode" {
+  description = "Mode Gin (debug ou release)"
+  type        = string
+  default     = "debug"
+}
+
+variable "pg_port" {
+  description = "Port PostgreSQL"
+  type        = string
+  default     = "5432"
+}
+
+variable "pg_sslmode" {
+  description = "Mode SSL PostgreSQL"
+  type        = string
+  default     = "require"
+}
+
+variable "key_vault_sku" {
+  description = "SKU du Key Vault (standard/premium)"
+  type        = string
+  default     = "standard"
+}
+
+output "container_fqdn" {
+  description = "FQDN (URL) du container Azure pour accès HTTP"
+  value       = azurerm_container_group.app.fqdn
+}
+
+output "swagger_url" {
+  description = "URL complète pour accéder à Swagger sur le backend"
+  value       = "http://${azurerm_container_group.app.fqdn}:8080/swagger/index.html"
+}
