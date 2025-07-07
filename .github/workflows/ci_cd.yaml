@@ -230,6 +230,9 @@ jobs:
       - name: Get AKS credentials
         run: az aks get-credentials --resource-group MonGroupeRessources --name pec2-aks --overwrite-existing
 
+      - name: Ensure k8s manifest directory exists
+        run: mkdir -p backend/infra/k8s
+
       - name: Generate K8s Secret manifest from GitHub secrets
         run: |
           kubectl create secret generic thinkshare-secrets \
