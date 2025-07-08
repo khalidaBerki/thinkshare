@@ -2,7 +2,7 @@ package message
 
 import (
 	"errors"
-	"fmt"
+	_ "fmt"
 
 	"gorm.io/gorm"
 )
@@ -96,12 +96,12 @@ func (r *repository) MarkMessagesAsRead(senderID, receiverID uint) error {
 }
 
 // Utilitaire pour générer une clé de conversation unique entre 2 utilisateurs (ex: "2-5")
-func generateConversationID(userID1, userID2 uint) string {
+/*func generateConversationID(userID1, userID2 uint) string {
 	if userID1 < userID2 {
 		return fmt.Sprintf("%d-%d", userID1, userID2)
 	}
 	return fmt.Sprintf("%d-%d", userID2, userID1)
-}
+}*/
 
 // Met à jour le contenu d'un message (seul l'auteur peut modifier)
 func (r *repository) UpdateMessage(msgID, userID uint, content string) error {
