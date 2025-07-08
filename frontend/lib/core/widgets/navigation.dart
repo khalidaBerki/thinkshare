@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../features/home/presentation/screens/feed_screen.dart';
 import '../../features/home/presentation/screens/create_post_screen.dart';
-//import '../../features/home/presentation/screens/messages_screen.dart';
+import '../../features/message/presentation/screens/conversation_list_screen.dart';
 //import '../../features/profile/presentation/screens/profile_screen.dart';
 
 class NavigationScreen extends StatefulWidget {
@@ -70,6 +70,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
         children: const [
           FeedScreen(),
           CreatePostScreen(),
+          ConversationListScreen(),
           // MessagesScreen(),
           // ProfileScreen(),
         ],
