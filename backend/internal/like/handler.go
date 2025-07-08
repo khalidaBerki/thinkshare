@@ -26,7 +26,18 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	likes.GET("/posts/:postID", h.GetPostLikeStats) // GET /api/likes/posts/:postID
 }
 
-// ToggleLike ajoute ou retire un like sur un post
+// ToggleLike godoc
+// @Summary      Toggle like on a post
+// @Description  Add or remove a like on a post by the authenticated user
+// @Tags         likes
+// @Security     BearerAuth
+// @Param        postID  path  int  true  "Post ID"
+// @Success      200  {object}  map[string]interface{} "Like toggled, returns stats"
+// @Failure      400  {object}  map[string]string "Invalid post ID"
+// @Failure      401  {object}  map[string]string "Authentication required"
+// @Failure      404  {object}  map[string]string "Post not found"
+// @Failure      500  {object}  map[string]string "Internal server error"
+// @Router       /api/likes/posts/{postID} [post]
 func (h *Handler) ToggleLike(c *gin.Context) {
 	// Récupérer l'ID de l'utilisateur depuis le middleware d'authentification
 	userID := c.GetInt("user_id")
@@ -68,7 +79,17 @@ func (h *Handler) ToggleLike(c *gin.Context) {
 	})
 }
 
-// GetPostLikeStats récupère les statistiques de likes d'un post
+// GetPostLikeStats godoc
+// @Summary      Get like stats for a post
+// @Description  Get the total number of likes and whether the authenticated user has liked the post
+// @Tags         likes
+// @Security     BearerAuth
+// @Param        postID  path  int  true  "Post ID"
+// @Success      200  {object}  map[string]interface{} "Like stats"
+// @Failure      400  {object}  map[string]string "Invalid post ID"
+// @Failure      404  {object}  map[string]string "Post not found"
+// @Failure      500  {object}  map[string]string "Internal server error"
+// @Router       /api/likes/posts/{postID} [get]
 func (h *Handler) GetPostLikeStats(c *gin.Context) {
 	// Récupérer l'ID de l'utilisateur (optionnel pour cette route)
 	userID := c.GetInt("user_id")

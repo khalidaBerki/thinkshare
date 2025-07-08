@@ -31,6 +31,19 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 // Récupérer un média par son ID
+
+// GetMediaByID godoc
+// @Summary      Get media by ID
+// @Description  Retrieve a media file and its metadata by its ID
+// @Tags         media
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id   path      int  true  "Media ID"
+// @Success      200  {object}  media.Media
+// @Failure      400  {object}  map[string]string "Invalid media ID"
+// @Failure      404  {object}  map[string]string "Media not found"
+// @Failure      500  {object}  map[string]string "Internal server error"
+// @Router       /api/media/{id} [get]
 func (h *Handler) GetMediaByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -59,6 +72,18 @@ func (h *Handler) GetMediaByID(c *gin.Context) {
 }
 
 // Supprimer un média
+// DeleteMedia godoc
+// @Summary      Delete a media file
+// @Description  Delete a media file by its ID (only the owner or admin can delete)
+// @Tags         media
+// @Security     BearerAuth
+// @Param        id   path      int  true  "Media ID"
+// @Success      200  {object}  map[string]interface{} "Media deleted successfully"
+// @Failure      400  {object}  map[string]string "Invalid media ID"
+// @Failure      401  {object}  map[string]string "Unauthorized"
+// @Failure      404  {object}  map[string]string "Media not found"
+// @Failure      500  {object}  map[string]string "Internal server error"
+// @Router       /api/media/{id} [delete]
 func (h *Handler) DeleteMedia(c *gin.Context) {
 	// Vérifier que l'utilisateur est autorisé
 	userID := c.GetInt("user_id")
@@ -100,6 +125,17 @@ func (h *Handler) DeleteMedia(c *gin.Context) {
 }
 
 // Récupérer tous les médias associés à un post
+// GetMediasByPostID godoc
+// @Summary      Get all media for a post
+// @Description  Retrieve all media files associated with a specific post
+// @Tags         media
+// @Security     BearerAuth
+// @Produce      json
+// @Param        postID   path      int  true  "Post ID"
+// @Success      200  {object}  map[string]interface{} "List of media for the post"
+// @Failure      400  {object}  map[string]string "Invalid post ID"
+// @Failure      500  {object}  map[string]string "Internal server error"
+// @Router       /api/media/post/{postID} [get]
 func (h *Handler) GetMediasByPostID(c *gin.Context) {
 	postID, err := strconv.ParseUint(c.Param("postID"), 10, 32)
 	if err != nil {
@@ -121,6 +157,20 @@ func (h *Handler) GetMediasByPostID(c *gin.Context) {
 }
 
 // Mettre à jour les métadonnées d'un média
+// UpdateMediaMetadata godoc
+// @Summary      Update media metadata
+// @Description  Update the metadata of a media file (only the owner or admin can update)
+// @Tags         media
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "Media ID"
+// @Param        body body      object true "Metadata update payload"
+// @Success      200  {object}  map[string]interface{} "Metadata updated successfully"
+// @Failure      400  {object}  map[string]string "Invalid input"
+// @Failure      401  {object}  map[string]string "Unauthorized"
+// @Failure      500  {object}  map[string]string "Internal server error"
+// @Router       /api/media/{id}/metadata [put]
 func (h *Handler) UpdateMediaMetadata(c *gin.Context) {
 	// Vérifier que l'utilisateur est autorisé
 	userID := c.GetInt("user_id")
@@ -160,6 +210,16 @@ func (h *Handler) UpdateMediaMetadata(c *gin.Context) {
 }
 
 // Nettoyer les fichiers médias orphelins
+// CleanupOrphanedMedia godoc
+// @Summary      Cleanup orphaned media files
+// @Description  Delete all media files not referenced in the database (admin only)
+// @Tags         media
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  map[string]interface{} "Cleanup result"
+// @Failure      401  {object}  map[string]string "Unauthorized"
+// @Failure      500  {object}  map[string]string "Internal server error"
+// @Router       /api/media/cleanup [post]
 func (h *Handler) CleanupOrphanedMedia(c *gin.Context) {
 	// Cette action devrait être réservée aux administrateurs
 	userID := c.GetInt("user_id")

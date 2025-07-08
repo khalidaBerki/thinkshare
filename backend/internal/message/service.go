@@ -37,7 +37,7 @@ func NewService(repo Repository, db *gorm.DB) Service {
 // Send crée un message et renvoie son DTO enrichi.
 func (s *service) Send(senderID uint, input CreateMessageInput) (*MessageDTO, error) {
 	if senderID == input.ReceiverID {
-		return nil, errors.New("vous ne pouvez pas vous envoyer un message à vous-même")
+		return nil, errors.New("you can't send a message to yourself")
 	}
 
 	msg := &Message{

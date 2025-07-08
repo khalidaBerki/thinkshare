@@ -8,15 +8,15 @@ import (
 )
 
 // GetProfileHandler godoc
-// @Summary      Récupérer le profil utilisateur
-// @Description  Retourne les informations du profil de l'utilisateur connecté
+// @Summary      Get current user profile
+// @Description  Returns the profile information of the authenticated user
 // @Tags         user
 // @Security     BearerAuth
 // @Produce      json
 // @Success      200  {object} ProfileDTO
-// @Failure      404  {object} map[string]string
+// @Failure      401  {object} map[string]string "Unauthorized"
+// @Failure      404  {object} map[string]string "User not found"
 // @Router       /api/profile [get]
-
 func GetProfileHandler(c *gin.Context) {
 	// Récupère l'ID depuis le contexte (JWT)
 	userID := c.GetInt("user_id")
@@ -39,16 +39,17 @@ func GetProfileHandler(c *gin.Context) {
 }
 
 // UpdateProfileHandler godoc
-// @Summary      Modifier le profil utilisateur
-// @Description  Met à jour les champs du profil (nom, bio, avatar)
+// @Summary      Update current user profile
+// @Description  Update profile fields (full name, bio, avatar)
 // @Tags         user
 // @Security     BearerAuth
 // @Accept       json
 // @Produce      json
-// @Param        body  body  user.UpdateUserInput  true  "Champs modifiables du profil"
-// @Success      200  {object} map[string]string
-// @Failure      400  {object} map[string]string
-// @Failure      500  {object} map[string]string
+// @Param        body  body  user.UpdateUserInput  true  "Updatable profile fields"
+// @Success      200  {object} map[string]string "Profile updated successfully"
+// @Failure      400  {object} map[string]string "Invalid input"
+// @Failure      401  {object} map[string]string "Unauthorized"
+// @Failure      500  {object} map[string]string "Internal server error"
 // @Router       /api/profile [put]
 func UpdateProfileHandler(c *gin.Context) {
 	var input UpdateUserInput
@@ -68,7 +69,16 @@ func UpdateProfileHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Profil mis à jour avec succès"})
 }
 
-// GetUserProfileHandler retourne le profil public d'un utilisateur par son ID
+// GetUserProfileHandler godoc
+// @Summary      Get public user profile
+// @Description  Returns the public profile of a user by their ID
+// @Tags         user
+// @Produce      json
+// @Param        id   path      int  true  "User ID"
+// @Success      200  {object} ProfileDTO
+// @Failure      400  {object} map[string]string "Invalid user ID"
+// @Failure      404  {object} map[string]string "User not found"
+// @Router       /api/users/{id}/profile [get]
 func GetUserProfileHandler(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
