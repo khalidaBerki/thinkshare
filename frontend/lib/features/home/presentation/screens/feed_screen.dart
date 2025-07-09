@@ -42,15 +42,14 @@ class _FeedScreenState extends State<FeedScreen> {
     final provider = Provider.of<HomeProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home Feed'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Home Feed'), centerTitle: true),
       backgroundColor: Theme.of(context).colorScheme.background,
       body: RefreshIndicator(
         onRefresh: () => provider.loadPosts(refresh: true),
         child: ListView.builder(
           controller: _controller,
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
           itemCount: provider.posts.length + (provider.hasMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index < provider.posts.length) {
@@ -59,7 +58,7 @@ class _FeedScreenState extends State<FeedScreen> {
             } else {
               return const Center(
                 child: Padding(
-                  padding: EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(24.0),
                   child: CircularProgressIndicator(),
                 ),
               );

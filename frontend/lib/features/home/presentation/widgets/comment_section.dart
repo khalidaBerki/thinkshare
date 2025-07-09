@@ -19,6 +19,7 @@ class CommentSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = TextEditingController();
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,7 +30,7 @@ class CommentSection extends StatelessWidget {
             fontFamily: 'Montserrat',
             fontWeight: FontWeight.bold,
             fontSize: 18,
-            color: Theme.of(context).colorScheme.primary,
+            color: colorScheme.primary,
           ),
         ),
         const SizedBox(height: 10),
@@ -42,9 +43,7 @@ class CommentSection extends StatelessWidget {
               child: Text(
                 'No comments yet.',
                 style: TextStyle(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withOpacity(0.7),
+                  color: colorScheme.onSurface.withOpacity(0.7),
                   fontSize: 16,
                 ),
               ),
@@ -59,24 +58,40 @@ class CommentSection extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                decoration: const InputDecoration(hintText: "Add a comment..."),
-              ),
+        Material(
+          elevation: 3,
+          borderRadius: BorderRadius.circular(24),
+          color: colorScheme.surface,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(
+                      hintText: "Add a comment...",
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.send, color: colorScheme.primary),
+                  splashRadius: 22,
+                  onPressed: () {
+                    if (controller.text.trim().isNotEmpty) {
+                      onAddComment(controller.text.trim());
+                      controller.clear();
+                    }
+                  },
+                ),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.send),
-              onPressed: () {
-                if (controller.text.trim().isNotEmpty) {
-                  onAddComment(controller.text.trim());
-                  controller.clear();
-                }
-              },
-            ),
-          ],
+          ),
         ),
       ],
     );
@@ -104,91 +119,103 @@ class _CommentTile extends StatelessWidget {
         ? comment['avatar_url']
         : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Material(
+        elevation: 2,
+        borderRadius: BorderRadius.circular(16),
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(backgroundImage: NetworkImage(avatarUrl), radius: 18),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  userName,
-                  style: TextStyle(
-                    fontFamily: 'Montserrat',
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  comment['text'] ?? '',
-                  style: TextStyle(
-                    fontFamily: 'Montserrat',
-                    fontSize: 14,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatDate(comment['created_at']),
-                  style: TextStyle(
-                    color: colorScheme.secondary.withOpacity(0.7),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'edit') {
-                final editController = TextEditingController(
-                  text: comment['text'],
-                );
-                final result = await showDialog<String>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Edit comment'),
-                    content: TextField(
-                      controller: editController,
-                      autofocus: true,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundImage: NetworkImage(avatarUrl),
+                radius: 18,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      userName,
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                        fontSize: 14,
+                      ),
                     ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                    const SizedBox(height: 4),
+                    Text(
+                      comment['text'] ?? '',
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 14,
+                        color: colorScheme.onSurface,
                       ),
-                      TextButton(
-                        onPressed: () =>
-                            Navigator.pop(context, editController.text.trim()),
-                        child: const Text('Save'),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatDate(comment['created_at']),
+                      style: TextStyle(
+                        color: colorScheme.secondary.withOpacity(0.7),
+                        fontSize: 12,
                       ),
-                    ],
-                  ),
-                );
-                if (result != null && result.isNotEmpty) {
-                  await onEdit(comment['id'].toString(), result);
-                }
-              } else if (value == 'delete') {
-                await onDelete(comment['id'].toString());
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-              const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuButton<String>(
+                onSelected: (value) async {
+                  if (value == 'edit') {
+                    final editController = TextEditingController(
+                      text: comment['text'],
+                    );
+                    final result = await showDialog<String>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Edit comment'),
+                        content: TextField(
+                          controller: editController,
+                          autofocus: true,
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(
+                              context,
+                              editController.text.trim(),
+                            ),
+                            child: const Text('Save'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (result != null && result.isNotEmpty) {
+                      await onEdit(comment['id'].toString(), result);
+                    }
+                  } else if (value == 'delete') {
+                    await onDelete(comment['id'].toString());
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                ],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
