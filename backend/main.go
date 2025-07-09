@@ -152,6 +152,9 @@ func main() {
 	// Initialiser Stripe
 	payment.InitStripe()
 
+	// Route publique pour le webhook Stripe (avant les routes protégées)
+	r.POST("/api/payment/webhook", payment.StripeWebhookHandler)
+
 	// 🔐 Routes API protégées
 	api := r.Group("/api", auth.AuthMiddleware())
 	{
