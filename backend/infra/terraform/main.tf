@@ -108,6 +108,11 @@ variable "key_vault_sku" {
   default     = "standard"
 }
 
+variable "stripe_secret_key" {
+  description = "Clé secrète Stripe"
+  type        = string
+}
+
 output "aks_node_public_ip" {
   description = "IP publique du nœud AKS pour accès à Swagger via NodePort"
   value = azurerm_kubernetes_cluster.aks.default_node_pool[0].node_public_ip_prefix_id
