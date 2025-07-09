@@ -144,6 +144,7 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
+            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources
 
       - name: Terraform Import PostgreSQL Flexible Server
@@ -160,6 +161,7 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
+            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
 
       - name: Terraform Import Key Vault
@@ -176,6 +178,7 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
+            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv
 
       - name: Terraform Import AKS Cluster
@@ -192,6 +195,7 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
+            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
 
       - name: Terraform Apply
@@ -207,7 +211,8 @@ jobs:
             -var="gin_mode=${{ secrets.GIN_MODE }}" \
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
-            -var="prefix=${{ secrets.PREFIX }}"
+            -var="prefix=${{ secrets.PREFIX }}" \
+            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}"
 
   k8s-deploy:
     name: Deploy to AKS (Kubernetes)
