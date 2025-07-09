@@ -89,9 +89,6 @@ func (r *repository) MarkMessagesAsRead(senderID, receiverID uint) error {
 	if res.Error != nil {
 		return res.Error
 	}
-	if res.RowsAffected == 0 {
-		return errors.New("no messages to mark as read")
-	}
 	return nil
 }
 
