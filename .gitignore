@@ -30,3 +30,5 @@ ERROR
 [stage-1
 transferring
 =
+!backend/infra/k8s/monitoring/
+!backend/infra/k8s/monitoring/*
