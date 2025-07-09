@@ -1,0 +1,311 @@
+name: CI CD Thinkshare Backend
+
+on:
+  push:
+    branches: [ kubernetes, main ]
+  pull_request:
+    branches: [ main,kubernetes]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install dependencies
+        run: cd backend && go mod download
+      - name: Lint
+        run: cd backend && go install golang.org/x/lint/golint@latest && golint ./...
+
+  unit-test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install dependencies
+        run: cd backend && go mod download
+      - name: Run unit tests
+        run: cd backend && go test -v ./tests/unit/...
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-test
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: test
+      PGPASSWORD: test
+      PGDATABASE: testdb
+      PGSSLMODE: disable
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install dependencies
+        run: cd backend && go mod download
+      - name: Debug env
+        run: env | grep PG
+      - name: Run integration tests
+        run: cd backend && go test -v ./tests/integration/...
+
+  docker-build-backend:
+    name: Build Docker image (Backend)
+    runs-on: ubuntu-latest
+    needs: [unit-test, integration-test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t thinkshare-backend:latest ./backend
+      - name: Tag Docker image as v1
+        run: docker tag thinkshare-backend:latest ${{ secrets.DOCKERHUB_USERNAME }}/thinkshare-backend:V1
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push Docker image v1
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/thinkshare-backend:V1
+
+  docker-build-frontend:
+    name: Build Docker image (Frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t thinkshare-frontend:latest ./frontend
+      # Décommenter pour push sur Docker Hub
+      # - name: Login to DockerHub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}.DOCKERHUB_TOKEN }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - name: Push Docker image      #   run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/thinkshare-frontend:V1
+
+
+      #   run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/thinkshare-frontend:V1
+
+  terraform-deploy:
+    name: Deploy on Azure with Terraform
+    runs-on: ubuntu-latest
+    needs: docker-build-backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init
+        run: cd backend/infra/terraform && terraform init
+
+      - name: Terraform Import Resource Group
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
+            azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources
+
+      - name: Terraform Import PostgreSQL Flexible Server
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
+            azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
+
+      - name: Terraform Import Key Vault
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
+            azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv
+
+      - name: Terraform Import AKS Cluster
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
+            azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
+
+      - name: Terraform Apply
+        run: |
+          cd backend/infra/terraform
+          terraform apply -auto-approve \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}"
+
+  k8s-deploy:
+    name: Deploy to AKS (Kubernetes)
+    runs-on: ubuntu-latest
+    needs: [docker-build-backend, terraform-deploy]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Get AKS credentials
+        run: az aks get-credentials --resource-group MonGroupeRessources --name pec2-aks --overwrite-existing
+
+      - name: Ensure k8s manifest directory exists
+        run: mkdir -p backend/infra/k8s
+
+      - name: Generate K8s Secret manifest from GitHub secrets
+        run: |
+          kubectl create secret generic thinkshare-secrets \
+            --from-literal=jwt_secret="${{ secrets.JWT_SECRET }}" \
+            --from-literal=pg_host="${{ secrets.PG_HOST }}" \
+            --from-literal=db_admin="${{ secrets.DB_ADMIN }}" \
+            --from-literal=db_password="${{ secrets.DB_PASSWORD }}" \
+            --from-literal=db_name="${{ secrets.DB_NAME }}" \
+            --from-literal=pg_port="${{ secrets.PG_PORT }}" \
+            --from-literal=pg_sslmode="${{ secrets.PGSSLMODE }}" \
+            --from-literal=gin_mode="${{ secrets.GIN_MODE }}" \
+            --dry-run=client -o yaml > backend/infra/k8s/thinkshare-secrets.yaml
+
+      - name: Create postgres-exporter-secrets
+        run: |
+          kubectl delete secret postgres-exporter-secrets -n monitoring --ignore-not-found
+          kubectl create secret generic postgres-exporter-secrets \
+            --from-literal=DATA_SOURCE_URI="${{ secrets.DATA_SOURCE_URI }}" \
+            --from-literal=DATA_SOURCE_USER="${{ secrets.DATA_SOURCE_USER }}" \
+            --from-literal=DATA_SOURCE_PASS="${{ secrets.DATA_SOURCE_PASS }}" \
+            -n monitoring
+
+      - name: Generate values.yaml for Grafana Alloy
+        run: |
+          cat <<EOF > backend/infra/monitoring-grafana-cloud/values.yaml
+          destinations:
+            - name: grafana-cloud-metrics
+              type: prometheus
+              auth:
+                type: basic
+                username: "${{ secrets.GRAFANA_CLOUD_USERNAME_METRICS }}"
+                password: "${{ secrets.GRAFANA_CLOUD_PASSWORD_METRICS }}"
+            - name: grafana-cloud-logs
+              type: loki
+              auth:
+                type: basic
+                username: "${{ secrets.GRAFANA_CLOUD_USERNAME_LOGS }}"
+                password: "${{ secrets.GRAFANA_CLOUD_PASSWORD_LOGS }}"
+            - name: grafana-cloud-otlp-endpoint
+              type: otlp
+              protocol: http
+              auth:
+                type: basic
+                username: "${{ secrets.GRAFANA_CLOUD_USERNAME_OTLP }}"
+                password: "${{ secrets.GRAFANA_CLOUD_PASSWORD_OTLP }}"
+              metrics:
+                enabled: true
+              logs:
+                enabled: true
+              traces:
+                enabled: true
+          clusterMetrics:
+            enabled: true
+            kube-state-metrics:
+              podAnnotations:
+                kubernetes.azure.com/set-kube-service-host-fqdn: "true"
+          alloy-metrics:
+            enabled: true
+            controller:
+              podAnnotations:
+                kubernetes.azure.com/set-kube-service-host-fqdn: "true"
+          EOF
+
+      - name: Deploy monitoring manifests
+        run: |
+          kubectl apply -f backend/infra/k8s/monitoring/
+
+      - name: Deploy app manifests
+        run: |
+          kubectl apply -f backend/infra/k8s/
+
+      - name: Check rollout status backend
+        run: kubectl rollout status deployment/thinkshare-backend
+
+      - name: Check rollout status postgres-exporter
+        run: kubectl rollout status deployment/postgres-exporter -n monitoring

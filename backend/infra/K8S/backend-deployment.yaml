@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thinkshare-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: thinkshare-backend
+  template:
+    metadata:
+      labels:
+        app: thinkshare-backend
+    spec:
+      containers:
+      - name: thinkshare-backend
+        image: khalidaber/thinkshare-backend:v1.2
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: "8080"
+        - name: GIN_MODE
+          value: "debug"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: jwt_secret
+        - name: PGHOST
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: pg_host
+        - name: PGUSER
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: db_admin
+        - name: PGPORT
+          value: "5432"
+        - name: PGDATABASE
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: db_name
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: db_password
+        - name: PGSSLMODE
+          value: "require"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: thinkshare-backend
+spec:
+  type: LoadBalancer
+  selector:
+    app: thinkshare-backend
+  ports:
+    - port: 8080
+      targetPort: 8080
