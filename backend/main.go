@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	_ "backend/docs"
 
@@ -91,18 +92,16 @@ func main() {
 	// ✅ Démarrage serveur
 	r := gin.Default()
 
-	// Middleware CORS pour permettre les requêtes cross-origin
+	// Middleware CORS (doit être avant les routes)
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
-
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
 		}
-
 		c.Next()
 	})
 
@@ -136,7 +135,6 @@ func main() {
 				"server_time":  time.Now().Format(time.RFC3339),
 			})
 		})
-
 		// Route pour tester l'authentification
 		r.GET("/api/test-auth", auth.AuthMiddleware(), func(c *gin.Context) {
 			userID := c.GetInt("user_id")
@@ -146,7 +144,6 @@ func main() {
 				"time":    time.Now().Format(time.RFC3339),
 			})
 		})
-
 		log.Printf("🔧 Routes de debug activées (mode développement)")
 	}
 
@@ -157,10 +154,10 @@ func main() {
 		api.GET("/profile", user.GetProfileHandler)
 		api.PUT("/profile", user.UpdateProfileHandler)
 		api.GET("/users/:id", user.GetUserProfileHandler)
-		api.POST("/subscribe", auth.AuthMiddleware(), subscription.SubscribeHandler)
-		api.POST("/unsubscribe", auth.AuthMiddleware(), subscription.UnsubscribeHandler)
-		r.GET("/api/followers/:id", auth.AuthMiddleware(), subscription.GetFollowersByUserHandler)
-		r.GET("/api/subscriptions", auth.AuthMiddleware(), subscription.GetMySubscriptionsHandler)
+		api.POST("/subscribe", subscription.SubscribeHandler)
+		api.POST("/unsubscribe", subscription.UnsubscribeHandler)
+		api.GET("/followers/:id", subscription.GetFollowersByUserHandler)
+		api.GET("/subscriptions", subscription.GetMySubscriptionsHandler)
 
 		// 📝 Routes posts
 		postRepo := post.NewRepository()
@@ -189,6 +186,9 @@ func main() {
 
 		log.Printf("✅ Routes API protégées configurées")
 	}
+
+	// Endpoint pour les métriques Prometheus (toujours accessible)
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Port dynamique
 	port := os.Getenv("PORT")
