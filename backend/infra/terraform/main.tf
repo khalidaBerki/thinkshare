@@ -120,7 +120,13 @@ output "aks_node_public_ip" {
 }
 
 resource "azurerm_key_vault_secret" "stripe_secret_key" {
-  name         = "STRIPE_SECRET_KEY"
+  name         = "stripe-secret-key"
   value        = var.stripe_secret_key
+  key_vault_id = azurerm_key_vault.vault.id
+}
+
+resource "azurerm_key_vault_secret" "stripe_webhook_secret" {
+  name         = "stripe-webhook-secret"
+  value        = var.stripe_webhook_secret
   key_vault_id = azurerm_key_vault.vault.id
 }
