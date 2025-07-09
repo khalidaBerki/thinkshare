@@ -196,7 +196,7 @@ class _ConversationScreenState extends State<ConversationScreen>
                                               end: Alignment.bottomLeft,
                                             )
                                           : null,
-                                      color: isMe ? null : colorScheme.surfaceVariant,
+                                      color: isMe ? null : colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.only(
                                         topLeft: const Radius.circular(18),
                                         topRight: const Radius.circular(18),

@@ -49,7 +49,7 @@ class ConversationTile extends StatelessWidget {
                     : const AssetImage('assets/images/icon.png')
                           as ImageProvider,
                 radius: 26,
-                backgroundColor: colorScheme.surfaceVariant,
+                backgroundColor: colorScheme.surfaceContainerHighest,
               ),
               title: Text(
                 other['username'] ?? '',
