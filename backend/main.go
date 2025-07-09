@@ -17,6 +17,8 @@ import (
 	"backend/internal/like"
 	"backend/internal/media"
 	"backend/internal/message"
+	"backend/internal/models"
+	"backend/internal/payment"
 	"backend/internal/post"
 	"backend/internal/postaccess"
 	"backend/internal/subscription"
@@ -49,7 +51,7 @@ func main() {
 		{"comments", &comment.Comment{}},
 		{"likes", &like.Like{}},
 		{"media", &media.Media{}},
-		{"subscriptions", &subscription.Subscription{}},
+		{"subscriptions", &models.Subscription{}},
 		{"messages", &message.Message{}},
 		{"postaccess", &postaccess.PostAccess{}},
 	}
@@ -146,6 +148,12 @@ func main() {
 		})
 		log.Printf("🔧 Routes de debug activées (mode développement)")
 	}
+
+	// Initialiser Stripe
+	payment.InitStripe()
+
+	// Route publique pour le webhook Stripe (avant les routes protégées)
+	r.POST("/api/payment/webhook", payment.StripeWebhookHandler)
 
 	// 🔐 Routes API protégées
 	api := r.Group("/api", auth.AuthMiddleware())

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"backend/internal/db"
+	"backend/internal/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,7 +41,7 @@ func SubscribeHandler(c *gin.Context) {
 		return
 	}
 
-	var existing Subscription
+	var existing models.Subscription
 	err := db.GormDB.Where("subscriber_id = ? AND creator_id = ?", subscriberID, input.CreatorID).First(&existing).Error
 
 	// Si déjà abonné
@@ -90,8 +91,7 @@ func SubscribeHandler(c *gin.Context) {
 		}
 	}
 
-	// Pas d'abonnement existant, on crée
-	sub := Subscription{
+	sub := models.Subscription{
 		SubscriberID: uint(subscriberID),
 		CreatorID:    input.CreatorID,
 		StartDate:    time.Now(),
@@ -99,7 +99,9 @@ func SubscribeHandler(c *gin.Context) {
 		Type:         input.Type,
 	}
 	if input.Type == "paid" {
-		sub.EndDate = sub.StartDate.AddDate(0, 1, 0)
+		// On ne crée pas directement l'abonnement payant ici, on invite à utiliser /subscribe/paid (Stripe)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Pour un abonnement payant, utilisez /api/subscribe/paid"})
+		return
 	}
 	if err := db.GormDB.Create(&sub).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erreur lors de l'abonnement"})
@@ -125,8 +127,7 @@ func UnsubscribeHandler(c *gin.Context) {
 	}
 
 	subscriberID := c.GetInt("user_id")
-
-	var sub Subscription
+	var sub models.Subscription
 	if err := db.GormDB.Where("subscriber_id = ? AND creator_id = ?", subscriberID, creatorID).First(&sub).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Abonnement non trouvé"})
 		return
@@ -150,8 +151,7 @@ func UnsubscribeHandler(c *gin.Context) {
 // @Router /api/followers [get]
 func GetFollowersHandler(c *gin.Context) {
 	userID := c.GetInt("user_id")
-
-	var followers []Subscription
+	var followers []models.Subscription
 	if err := db.GormDB.Where("creator_id = ? AND is_active = ?", userID, true).Find(&followers).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Erreur lors de la récupération"})
 		return
@@ -179,8 +179,7 @@ func GetFollowersByUserHandler(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "ID invalide"})
 		return
 	}
-
-	var followers []Subscription
+	var followers []models.Subscription
 	if err := db.GormDB.Where("creator_id = ? AND is_active = ?", creatorID, true).Find(&followers).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Erreur lors de la récupération"})
 		return
@@ -215,8 +214,7 @@ func GetFollowersByUserHandler(c *gin.Context) {
 // @Router /api/subscriptions [get]
 func GetMySubscriptionsHandler(c *gin.Context) {
 	userID := c.GetInt("user_id")
-
-	var subs []Subscription
+	var subs []models.Subscription
 	if err := db.GormDB.Where("subscriber_id = ? AND is_active = ?", userID, true).Find(&subs).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Erreur lors de la récupération"})
 		return
