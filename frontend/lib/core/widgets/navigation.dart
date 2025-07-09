@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../features/home/presentation/screens/feed_screen.dart';
 import '../../features/home/presentation/screens/create_post_screen.dart';
 import '../../features/message/presentation/screens/conversation_list_screen.dart';
 //import '../../features/profile/presentation/screens/profile_screen.dart';
 
 class NavigationScreen extends StatefulWidget {
-  const NavigationScreen({super.key});
+  final int tabIndex;
+  const NavigationScreen({super.key, this.tabIndex = 0});
 
   @override
   State<NavigationScreen> createState() => _NavigationScreenState();
 }
 
 class _NavigationScreenState extends State<NavigationScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   late final PageController _pageController;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _currentIndex = widget.tabIndex;
+    _pageController = PageController(initialPage: _currentIndex);
   }
 
   @override
@@ -31,6 +34,20 @@ class _NavigationScreenState extends State<NavigationScreen> {
     setState(() {
       _currentIndex = page;
     });
+    switch (page) {
+      case 0:
+        context.go('/home');
+        break;
+      case 1:
+        context.go('/post');
+        break;
+      case 2:
+        context.go('/messages');
+        break;
+      case 3:
+        context.go('/profile');
+        break;
+    }
   }
 
   void onNavTapped(int page) {
@@ -71,7 +88,6 @@ class _NavigationScreenState extends State<NavigationScreen> {
           FeedScreen(),
           CreatePostScreen(),
           ConversationListScreen(),
-          // MessagesScreen(),
           // ProfileScreen(),
         ],
       ),

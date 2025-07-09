@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import 'dart:html' as html;
-//import 'package:go_router/go_router.dart';
 import '../../data/home_repository.dart';
 
 class CreatePostScreen extends StatefulWidget {
@@ -40,7 +39,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         });
       }
     } catch (e) {
-      setState(() => _error = "Erreur lors de la sélection d'images.");
+      setState(() => _error = "Error while picking images.");
     }
   }
 
@@ -59,7 +58,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         });
       }
     } catch (e) {
-      setState(() => _error = "Erreur lors de la sélection de la vidéo.");
+      setState(() => _error = "Error while picking video.");
     }
   }
 
@@ -88,7 +87,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         });
       }
     } catch (e) {
-      setState(() => _error = "Erreur lors de la sélection des documents.");
+      setState(() => _error = "Error while picking documents.");
     }
   }
 
@@ -135,14 +134,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Post created successfully !"),
+            content: Text("Post created successfully!"),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 3),
           ),
         );
         await Future.delayed(const Duration(seconds: 3));
-        // Force le rechargement de la page (Flutter Web uniquement)
-        // ignore: undefined_prefixed_name
         html.window.location.reload();
       }
     } on DioException catch (e) {
@@ -151,7 +148,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = "Erreur inattendue : $e";
+        _error = "Unexpected error: $e";
       });
     } finally {
       setState(() => _isLoading = false);
@@ -161,26 +158,32 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget _mediaPreview() {
     if (_images.isNotEmpty) {
       return Wrap(
-        spacing: 8,
+        spacing: 10,
+        runSpacing: 10,
         children: _images
             .map(
               (img) => Stack(
                 alignment: Alignment.topRight,
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     child: Image.memory(
                       img.bytes!,
-                      width: 80,
-                      height: 80,
+                      width: 90,
+                      height: 90,
                       fit: BoxFit.cover,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: Colors.red),
-                    onPressed: () {
-                      setState(() => _images.remove(img));
-                    },
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => setState(() => _images.remove(img)),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.close, size: 18, color: Colors.red),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -206,6 +209,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               (doc) => Chip(
                 label: Text(doc.name),
                 onDeleted: () => setState(() => _documents.remove(doc)),
+                backgroundColor: Colors.blueGrey.shade50,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w500),
               ),
             )
             .toList(),
@@ -220,207 +225,232 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final isWide = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Add Post"), centerTitle: true),
+      appBar: AppBar(
+        title: const Text(
+          "Create Post",
+          style: TextStyle(
+            fontFamily: 'Montserrat',
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            letterSpacing: 0.2,
+          ),
+        ),
+        centerTitle: true,
+        elevation: 2,
+        backgroundColor: colorScheme.surface,
+        shadowColor: colorScheme.primary.withOpacity(0.08),
+        surfaceTintColor: colorScheme.primary,
+        actions: const [],
+      ),
       backgroundColor: colorScheme.surface,
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: isWide ? 600 : double.infinity),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(18),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Barre d'édition simple
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: colorScheme.primary.withOpacity(0.15),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.format_bold, color: colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Icon(Icons.format_italic, color: colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.format_underline,
-                          color: colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.format_align_left,
-                          color: colorScheme.primary,
-                        ),
-                        Icon(
-                          Icons.format_align_center,
-                          color: colorScheme.primary,
-                        ),
-                        Icon(
-                          Icons.format_align_right,
-                          color: colorScheme.primary,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _contentController,
-                    minLines: 3,
-                    maxLines: 8,
-                    style: const TextStyle(fontFamily: 'Montserrat'),
-                    decoration: InputDecoration(
-                      labelText: "Content *",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      fillColor: colorScheme.surface,
-                      filled: true,
-                    ),
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? "Le contenu est obligatoire"
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
+            padding: const EdgeInsets.all(22),
+            child: Material(
+              elevation: 3,
+              borderRadius: BorderRadius.circular(24),
+              color: colorScheme.surface,
+              child: Padding(
+                padding: const EdgeInsets.all(22),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Switch(
-                        value: _visibility == 'public',
-                        onChanged: (v) => setState(
-                          () => _visibility = v ? 'public' : 'private',
+                      // Simple edit bar (icons only for style)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
                         ),
-                        activeColor: colorScheme.primary,
-                      ),
-                      Text(
-                        _visibility == 'public'
-                            ? "Public Post"
-                            : "Private Post",
-                        style: TextStyle(
-                          color: _visibility == 'public'
-                              ? colorScheme.primary
-                              : colorScheme.error,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Montserrat',
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceVariant.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    value: _documentType,
-                    decoration: InputDecoration(
-                      labelText: "Document type (optionnel)",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: "report",
-                        child: Text("Report"),
-                      ),
-                      const DropdownMenuItem(
-                        value: "note",
-                        child: Text("Note"),
-                      ),
-                      const DropdownMenuItem(
-                        value: "memo",
-                        child: Text("Memo"),
-                      ),
-                      // Ajoute d'autres types si besoin
-                    ],
-                    onChanged: (v) => setState(() => _documentType = v),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: _pickImages,
-                        icon: const Icon(Icons.image),
-                        label: const Text("Images"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colorScheme.primary,
-                          foregroundColor: colorScheme.onPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: _pickVideo,
-                        icon: const Icon(Icons.videocam),
-                        label: const Text("Vidéo"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepPurple,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: _pickDocuments,
-                        icon: const Icon(Icons.insert_drive_file),
-                        label: const Text("Documents"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueGrey,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _mediaPreview(),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: colorScheme.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              "Submit Post",
-                              style: TextStyle(
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 17,
-                              ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.format_bold, color: colorScheme.primary),
+                            const SizedBox(width: 10),
+                            Icon(
+                              Icons.format_italic,
+                              color: colorScheme.primary,
                             ),
-                    ),
+                            const SizedBox(width: 10),
+                            Icon(
+                              Icons.format_underline,
+                              color: colorScheme.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Icon(
+                              Icons.format_align_left,
+                              color: colorScheme.primary,
+                            ),
+                            Icon(
+                              Icons.format_align_center,
+                              color: colorScheme.primary,
+                            ),
+                            Icon(
+                              Icons.format_align_right,
+                              color: colorScheme.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _contentController,
+                        minLines: 3,
+                        maxLines: 8,
+                        style: const TextStyle(fontFamily: 'Montserrat'),
+                        decoration: InputDecoration(
+                          labelText: "Content *",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          fillColor: colorScheme.surfaceVariant.withOpacity(
+                            0.5,
+                          ),
+                          filled: true,
+                        ),
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? "Content is required"
+                            : null,
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Switch(
+                            value: _visibility == 'public',
+                            onChanged: (v) => setState(
+                              () => _visibility = v ? 'public' : 'private',
+                            ),
+                            activeColor: colorScheme.primary,
+                          ),
+                          Text(
+                            _visibility == 'public'
+                                ? "Public Post"
+                                : "Private Post",
+                            style: TextStyle(
+                              color: _visibility == 'public'
+                                  ? colorScheme.primary
+                                  : colorScheme.error,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Montserrat',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: _documentType,
+                        decoration: InputDecoration(
+                          labelText: "Document type (optional)",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: "report",
+                            child: Text("Report"),
+                          ),
+                          DropdownMenuItem(value: "note", child: Text("Note")),
+                          DropdownMenuItem(value: "memo", child: Text("Memo")),
+                        ],
+                        onChanged: (v) => setState(() => _documentType = v),
+                      ),
+                      const SizedBox(height: 18),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: _pickImages,
+                            icon: const Icon(Icons.image),
+                            label: const Text("Images"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorScheme.primary,
+                              foregroundColor: colorScheme.onPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 2,
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: _pickVideo,
+                            icon: const Icon(Icons.videocam),
+                            label: const Text("Video"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 2,
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: _pickDocuments,
+                            icon: const Icon(Icons.insert_drive_file),
+                            label: const Text("Documents"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueGrey,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _mediaPreview(),
+                      if (_error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 14),
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colorScheme.primary,
+                            foregroundColor: colorScheme.onPrimary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            elevation: 3,
+                          ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  "Submit Post",
+                                  style: TextStyle(
+                                    fontFamily: 'Montserrat',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

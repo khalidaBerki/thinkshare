@@ -157,113 +157,125 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       backgroundColor: colorScheme.background,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(18.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              leading: InkWell(
-                borderRadius: BorderRadius.circular(28),
-                onTap: () {
-                  if (creator['id'] != null) {
-                    context.go('/user/${creator['id']}');
-                  }
-                },
-                child: AnimatedScale(
-                  scale: 1.0,
-                  duration: const Duration(milliseconds: 100),
-                  child: CircleAvatar(
-                    backgroundImage: NetworkImage(
-                      creator['avatar_url']?.isNotEmpty == true
-                          ? 'https://www.thinkshare.com/${creator['avatar_url']}'
-                          : 'https://ui-avatars.com/api/?name=${creator['full_name'] ?? 'User'}',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Material(
+              elevation: 3,
+              borderRadius: BorderRadius.circular(22),
+              color: colorScheme.surface,
+              child: Padding(
+                padding: const EdgeInsets.all(18.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ListTile(
+                      leading: InkWell(
+                        borderRadius: BorderRadius.circular(28),
+                        onTap: () {
+                          if (creator['id'] != null) {
+                            context.go('/user/${creator['id']}');
+                          }
+                        },
+                        child: AnimatedScale(
+                          scale: 1.0,
+                          duration: const Duration(milliseconds: 100),
+                          child: CircleAvatar(
+                            backgroundImage: NetworkImage(
+                              creator['avatar_url']?.isNotEmpty == true
+                                  ? 'https://www.thinkshare.com/${creator['avatar_url']}'
+                                  : 'https://ui-avatars.com/api/?name=${creator['full_name'] ?? 'User'}',
+                            ),
+                            radius: 28,
+                          ),
+                        ),
+                      ),
+                      title: InkWell(
+                        borderRadius: BorderRadius.circular(4),
+                        onTap: () {
+                          if (creator['id'] != null) {
+                            context.go('/user/${creator['id']}');
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2.0),
+                          child: Text(
+                            creator['full_name'] ?? 'No Name',
+                            style: TextStyle(
+                              fontFamily: 'Montserrat',
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                      subtitle: Row(
+                        children: [
+                          Text(
+                            post!['document_type'] ?? '',
+                            style: TextStyle(
+                              fontFamily: 'Montserrat',
+                              color: colorScheme.secondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _formatDate(post!['created_at']),
+                            style: TextStyle(
+                              color: colorScheme.secondary.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    radius: 28,
-                  ),
+                    const SizedBox(height: 10),
+                    if (isPrivate)
+                      _PrivatePostBanner()
+                    else ...[
+                      Text(
+                        post!['content'] ?? '',
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 16,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (mediaUrls.isNotEmpty) MediaCarousel(mediaUrls: mediaUrls),
+                    ],
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            hasLiked ? Icons.star : Icons.star_border,
+                            color: colorScheme.primary,
+                          ),
+                          onPressed: _toggleLike,
+                        ),
+                        Text('$likeCount'),
+                        const SizedBox(width: 16),
+                        Icon(Icons.mode_comment_outlined, color: colorScheme.primary),
+                        const SizedBox(width: 4),
+                        Text('${post!['comment_count'] ?? 0}'),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    CommentSection(
+                      comments: comments,
+                      isLoading: isCommentsLoading,
+                      onAddComment: _addComment,
+                      onEditComment: _editComment,
+                      onDeleteComment: _deleteComment,
+                    ),
+                  ],
                 ),
-              ),
-              title: InkWell(
-                borderRadius: BorderRadius.circular(4),
-                onTap: () {
-                  if (creator['id'] != null) {
-                    context.go('/user/${creator['id']}');
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2.0),
-                  child: Text(
-                    creator['full_name'] ?? 'No Name',
-                    style: TextStyle(
-                      fontFamily: 'Montserrat',
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
-                      fontSize: 18,
-                    ),
-                  ),
-                ),
-              ),
-              subtitle: Row(
-                children: [
-                  Text(
-                    post!['document_type'] ?? '',
-                    style: TextStyle(
-                      fontFamily: 'Montserrat',
-                      color: colorScheme.secondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _formatDate(post!['created_at']),
-                    style: TextStyle(
-                      color: colorScheme.secondary.withOpacity(0.7),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
               ),
             ),
-            const SizedBox(height: 10),
-            if (isPrivate)
-              _PrivatePostBanner()
-            else ...[
-              Text(
-                post!['content'] ?? '',
-                style: TextStyle(
-                  fontFamily: 'Montserrat',
-                  fontSize: 16,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (mediaUrls.isNotEmpty) MediaCarousel(mediaUrls: mediaUrls),
-            ],
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    hasLiked ? Icons.star : Icons.star_border,
-                    color: colorScheme.primary,
-                  ),
-                  onPressed: _toggleLike,
-                ),
-                Text('$likeCount'),
-                const SizedBox(width: 16),
-                Icon(Icons.mode_comment_outlined, color: colorScheme.primary),
-                const SizedBox(width: 4),
-                Text('${post!['comment_count'] ?? 0}'),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            CommentSection(
-              comments: comments,
-              isLoading: isCommentsLoading,
-              onAddComment: _addComment,
-              onEditComment: _editComment,
-              onDeleteComment: _deleteComment,
-            ),
-          ],
+          ),
         ),
       ),
     );

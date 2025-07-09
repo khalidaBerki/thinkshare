@@ -20,54 +20,66 @@ class MediaCarousel extends StatelessWidget {
           final ext = url.split('.').last.toLowerCase();
           final fullUrl = '${ApiConfig.baseUrl}$url';
 
+          Widget mediaChild;
           if (['png', 'jpg', 'jpeg', 'gif', 'webp'].contains(ext)) {
             // Image
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Image.network(
-                  fullUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[300],
-                      child: const Center(child: Icon(Icons.broken_image)),
-                    );
-                  },
-                ),
+            mediaChild = ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.network(
+                fullUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Icon(Icons.broken_image, size: 48),
+                    ),
+                  );
+                },
               ),
             );
           } else if (['mp4', 'mov', 'avi', 'webm'].contains(ext)) {
-            // Vidéo (affiche une icône ou une preview si tu veux)
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black12,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Center(
-                  child: Icon(Icons.play_circle_fill, size: 64, color: Colors.deepPurple),
+            // Vidéo
+            mediaChild = Container(
+              decoration: BoxDecoration(
+                color: Colors.black12,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.play_circle_fill,
+                  size: 64,
+                  color: Colors.deepPurple,
                 ),
               ),
             );
           } else {
             // Document
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.blueGrey[50],
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Center(
-                  child: Icon(Icons.insert_drive_file, size: 48, color: Colors.blueGrey),
+            mediaChild = Container(
+              decoration: BoxDecoration(
+                color: Colors.blueGrey[50],
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.insert_drive_file,
+                  size: 48,
+                  color: Colors.blueGrey,
                 ),
               ),
             );
           }
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+            child: Material(
+              elevation: 3,
+              borderRadius: BorderRadius.circular(18),
+              color: Theme.of(context).colorScheme.surface,
+              child: mediaChild,
+            ),
+          );
         },
       ),
     );

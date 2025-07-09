@@ -32,9 +32,21 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Messages"),
+        title: const Text(
+          "Messages",
+          style: TextStyle(
+            fontFamily: 'Montserrat',
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            letterSpacing: 0.2,
+          ),
+        ),
         centerTitle: true,
-        backgroundColor: colorScheme.primary,
+        elevation: 2,
+        backgroundColor: colorScheme.surface,
+        shadowColor: colorScheme.primary.withOpacity(0.08),
+        surfaceTintColor: colorScheme.primary,
+        automaticallyImplyLeading: false, // Pas de flèche retour
       ),
       body: Center(
         child: ConstrainedBox(
@@ -43,17 +55,17 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
               ? const Center(child: CircularProgressIndicator())
               : RefreshIndicator(
                   onRefresh: provider.fetchConversations,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    physics: const BouncingScrollPhysics(),
                     itemCount: conversations.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, i) => ConversationTile(
-                      conversation: conversations[i],
-                      onTap: () =>
-                          provider.openConversation(context, conversations[i]),
+                    itemBuilder: (context, i) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: ConversationTile(
+                        conversation: conversations[i],
+                        onTap: () =>
+                            provider.openConversation(context, conversations[i]),
+                      ),
                     ),
                   ),
                 ),
