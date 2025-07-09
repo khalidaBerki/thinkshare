@@ -1,0 +1,34 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Variables sensibles
+terraform.tfvars
+*.tfvars
+
+# Lock file (optionnel, utile pour la CI/CD)
+# .terraform.lock.hcl
+
+# Logs et binaires
+*.log
+*.exe
+*.bin
+*.dll
+*.so
+*.pyc
+__pycache__/
+.env
+.env.*
+
+# Fichiers/dossiers temporaires
+CACHED
+ERROR
+[auth]
+[builder
+[internal]
+[stage-1
+transferring
+=
+!backend/infra/k8s/monitoring/
+!backend/infra/k8s/monitoring/*

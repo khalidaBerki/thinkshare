@@ -28,7 +28,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	posts := rg.Group("/posts")
 
 	posts.POST("/", h.CreatePost)
-	posts.GET("/", h.GetAllPosts)
+	posts.GET("", h.GetAllPosts)
+	posts.GET("/user/:id", h.GetPostsByUser) // Posts d'un utilisateur spécifique
 	posts.GET("/:id", h.GetPostByID)
 	posts.PUT("/:id", h.UpdatePost)
 	posts.DELETE("/:id", h.DeletePost)
@@ -46,6 +47,24 @@ func getMapKeys(m map[string][]*multipart.FileHeader) []string {
 }
 
 // POST /posts : Créer un post
+// CreatePost godoc
+// @Summary      Create a new post
+// @Description  Create a new post with text and optional media (images, video, or documents)
+// @Tags         posts
+// @Security     BearerAuth
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        content        formData  string  true   "Post content"
+// @Param        visibility     formData  string  true   "Post visibility (public or private)"
+// @Param        document_type  formData  string  false  "Document type (optional)"
+// @Param        images         formData  file    false  "Images (max 10, only if no video/documents)"
+// @Param        video          formData  file    false  "Video (only if no images/documents)"
+// @Param        documents      formData  file    false  "Documents (max 5, only if no images/video)"
+// @Success      201  {object}  post.PostDTO
+// @Failure      400  {object}  map[string]string "Invalid input"
+// @Failure      401  {object}  map[string]string "Unauthorized"
+// @Failure      500  {object}  map[string]string "Internal server error"
+// @Router       /api/posts [post]
 func (h *Handler) CreatePost(c *gin.Context) {
 	userID := c.GetInt("user_id")
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<30) // 2GB max
@@ -171,6 +190,17 @@ func (h *Handler) CreatePost(c *gin.Context) {
 }
 
 // GET /posts/:id
+// GetPostByID godoc
+// @Summary      Get a post by ID
+// @Description  Retrieve a post and its details by its ID
+// @Tags         posts
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id   path      int  true  "Post ID"
+// @Success      200  {object}  post.PostDTO
+// @Failure      400  {object}  map[string]string "Invalid post ID"
+// @Failure      404  {object}  map[string]string "Post not found"
+// @Router       /api/posts/{id} [get]
 func (h *Handler) GetPostByID(c *gin.Context) {
 	userID := c.GetInt("user_id")
 	postID, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -191,31 +221,57 @@ func (h *Handler) GetPostByID(c *gin.Context) {
 }
 
 // GET /posts
+// GetAllPosts godoc
+// @Summary      Get all posts (infinite scroll)
+// @Description  Retrieve all posts with optional infinite scroll (after/limit)
+// @Tags         posts
+// @Security     BearerAuth
+// @Produce      json
+// @Param        after  query     int  false  "Last post ID already loaded (for infinite scroll)"
+// @Param        limit  query     int  false  "Number of posts to return (default 20)"
+// @Success      200  {object}   map[string]interface{} "List of posts and pagination info"
+// @Failure      401  {object}   map[string]string "Unauthorized"
+// @Failure      500  {object}   map[string]string "Internal server error"
+// @Router       /api/posts [get]
 func (h *Handler) GetAllPosts(c *gin.Context) {
 	userID := c.GetInt("user_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	afterID, _ := strconv.Atoi(c.DefaultQuery("after", "0"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20")) // on garder un limit pour éviter de tout charger
 
-	posts, total, err := h.service.GetAllPosts(page, limit, uint(userID))
+	posts, err := h.service.GetAllPostsAfter(uint(afterID), limit, uint(userID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	totalPages := (int(total) + limit - 1) / limit
+	hasMore := len(posts) == limit
 	c.JSON(http.StatusOK, gin.H{
-		"posts": posts,
-		"pagination": gin.H{
-			"page":        page,
-			"limit":       limit,
-			"total":       total,
-			"total_pages": totalPages,
-			"has_next":    page < totalPages,
-			"has_prev":    page > 1,
-		},
+		"posts":    posts,
+		"has_more": hasMore,
+		"last_id": func() uint {
+			if len(posts) > 0 {
+				return posts[len(posts)-1].ID
+			}
+			return 0
+		}(),
 	})
 }
 
 // PUT /posts/:id
+// UpdatePost godoc
+// @Summary      Update a post
+// @Description  Update the content, visibility, or document type of a post
+// @Tags         posts
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int                true  "Post ID"
+// @Param        body  body      post.UpdatePostInput  true  "Fields to update"
+// @Success      200   {object}  post.PostDTO
+// @Failure      400   {object}  map[string]string "Invalid input"
+// @Failure      401   {object}  map[string]string "Unauthorized"
+// @Failure      403   {object}  map[string]string "Forbidden"
+// @Failure      404   {object}  map[string]string "Post not found"
+// @Router       /api/posts/{id} [put]
 func (h *Handler) UpdatePost(c *gin.Context) {
 	postID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -243,6 +299,17 @@ func (h *Handler) UpdatePost(c *gin.Context) {
 }
 
 // DELETE /posts/:id
+// DeletePost godoc
+// @Summary      Delete a post
+// @Description  Delete a post by its ID
+// @Tags         posts
+// @Security     BearerAuth
+// @Param        id   path      int  true  "Post ID"
+// @Success      204  "No Content"
+// @Failure      401  {object}  map[string]string "Unauthorized"
+// @Failure      403  {object}  map[string]string "Forbidden"
+// @Failure      404  {object}  map[string]string "Post not found"
+// @Router       /api/posts/{id} [delete]
 func (h *Handler) DeletePost(c *gin.Context) {
 	postID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -263,6 +330,16 @@ func (h *Handler) DeletePost(c *gin.Context) {
 }
 
 // GET /posts/media/stats
+// GetMediaStats godoc
+// @Summary      Get media statistics
+// @Description  Retrieve statistics and recommendations about uploaded media
+// @Tags         posts
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  map[string]interface{} "Media statistics and recommendations"
+// @Failure      401  {object}  map[string]string "Unauthorized"
+// @Failure      500  {object}  map[string]string "Internal server error"
+// @Router       /api/posts/media/stats [get]
 func (h *Handler) GetMediaStats(c *gin.Context) {
 	statistics, recommendations := h.service.GetMediaStatistics()
 	if statistics == nil {
@@ -272,5 +349,48 @@ func (h *Handler) GetMediaStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"statistics":      statistics,
 		"recommendations": recommendations,
+	})
+}
+
+// GET /posts/user/:id
+// GetPostsByUser godoc
+// @Summary      Get posts by user
+// @Description  Retrieve all posts created by a specific user (with infinite scroll)
+// @Tags         posts
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id     path      int  true  "User ID"
+// @Param        after  query     int  false "Last post ID already loaded (for infinite scroll)"
+// @Param        limit  query     int  false "Number of posts to return (default 20)"
+// @Success      200  {object}   map[string]interface{} "List of posts and pagination info"
+// @Failure      400  {object}   map[string]string "Invalid user ID"
+// @Failure      401  {object}   map[string]string "Unauthorized"
+// @Failure      500  {object}   map[string]string "Internal server error"
+// @Router       /api/posts/user/{id} [get]
+func (h *Handler) GetPostsByUser(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	creatorID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || creatorID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+	afterID, _ := strconv.Atoi(c.DefaultQuery("after", "0"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	posts, err := h.service.GetPostsByCreatorAfter(uint(creatorID), uint(afterID), limit, uint(userID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	hasMore := len(posts) == limit
+	c.JSON(http.StatusOK, gin.H{
+		"posts":    posts,
+		"has_more": hasMore,
+		"last_id": func() uint {
+			if len(posts) > 0 {
+				return posts[len(posts)-1].ID
+			}
+			return 0
+		}(),
 	})
 }

@@ -233,7 +233,7 @@ jobs:
       - name: Ensure k8s manifest directory exists
         run: mkdir -p backend/infra/k8s
 
-      - name:   from GitHub secrets
+      - name: Generate K8s Secret manifest from GitHub secrets
         run: |
           kubectl create secret generic thinkshare-secrets \
             --from-literal=jwt_secret="${{ secrets.JWT_SECRET }}" \

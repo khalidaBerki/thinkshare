@@ -43,6 +43,18 @@ func UpdateUserProfile(id uint, input UpdateUserInput) error {
 	return result.Error
 }
 
-func UpdateUserMonthlyPrice(id uint, price float64) error {
-	return db.GormDB.Model(&User{}).Where("id = ?", id).Update("monthly_price", price).Error
+// UserRepository interface
+type UserRepository interface {
+	GetByID(id uint) (*User, error)
+}
+
+// repository implémentation
+type repository struct{}
+
+func NewRepository() UserRepository {
+	return &repository{}
+}
+
+func (r *repository) GetByID(id uint) (*User, error) {
+	return GetUserByID(id)
 }

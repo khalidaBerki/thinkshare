@@ -21,12 +21,13 @@ var GormDB *gorm.DB
 // InitDB initialise la connexion PostgreSQL et GORM
 func InitDB() {
 	connStr := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		os.Getenv("PGHOST"),
 		os.Getenv("PGPORT"),
 		os.Getenv("PGUSER"),
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"),
+		os.Getenv("PGSSLMODE"),
 	)
 
 	var err error

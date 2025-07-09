@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	_ "backend/docs"
 
@@ -93,18 +94,16 @@ func main() {
 	// ✅ Démarrage serveur
 	r := gin.Default()
 
-	// Middleware CORS pour permettre les requêtes cross-origin
+	// Middleware CORS (doit être avant les routes)
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
 		}
-
 		c.Next()
 	})
 
@@ -138,7 +137,6 @@ func main() {
 				"server_time":  time.Now().Format(time.RFC3339),
 			})
 		})
-
 		// Route pour tester l'authentification
 		r.GET("/api/test-auth", auth.AuthMiddleware(), func(c *gin.Context) {
 			userID := c.GetInt("user_id")
@@ -148,7 +146,6 @@ func main() {
 				"time":    time.Now().Format(time.RFC3339),
 			})
 		})
-
 		log.Printf("🔧 Routes de debug activées (mode développement)")
 	}
 
@@ -161,12 +158,11 @@ func main() {
 		// 👤 Routes utilisateur
 		api.GET("/profile", user.GetProfileHandler)
 		api.PUT("/profile", user.UpdateProfileHandler)
-		// Stripe abonnement payant
-		api.POST("/subscribe/paid", subscription.SubscribePaidStripeHandler)
+		api.GET("/users/:id", user.GetUserProfileHandler)
 		api.POST("/subscribe", subscription.SubscribeHandler)
 		api.POST("/unsubscribe", subscription.UnsubscribeHandler)
-		r.GET("/api/followers/:id", subscription.GetFollowersByUserHandler)
-		r.GET("/api/subscriptions", subscription.GetMySubscriptionsHandler)
+		api.GET("/followers/:id", subscription.GetFollowersByUserHandler)
+		api.GET("/subscriptions", subscription.GetMySubscriptionsHandler)
 
 		// 📝 Routes posts
 		postRepo := post.NewRepository()
@@ -176,7 +172,8 @@ func main() {
 
 		// 💬 Routes commentaires
 		commentRepo := comment.NewRepository(db.GormDB)
-		commentService := comment.NewService(commentRepo, postRepo)
+		userRepo := user.NewRepository()
+		commentService := comment.NewService(commentRepo, postRepo, userRepo)
 		commentHandler := comment.NewHandler(commentService)
 		commentHandler.RegisterRoutes(api)
 
@@ -186,11 +183,17 @@ func main() {
 		likeHandler := like.NewHandler(likeService)
 		likeHandler.RegisterRoutes(api)
 
+		// 📩 Routes messagerie privée
+		messageRepo := message.NewRepository(db.GormDB)
+		messageService := message.NewService(messageRepo, db.GormDB)
+		messageHandler := message.NewHandler(messageService)
+		messageHandler.RegisterRoutes(api)
+
 		log.Printf("✅ Routes API protégées configurées")
 	}
 
-	// Route webhook Stripe (publique)
-	r.POST("/stripe/webhook", payment.StripeWebhookHandler)
+	// Endpoint pour les métriques Prometheus (toujours accessible)
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Port dynamique
 	port := os.Getenv("PORT")
