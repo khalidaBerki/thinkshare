@@ -2,9 +2,9 @@ name: CI CD Thinkshare Backend
 
 on:
   push:
-    branches: [ kubernetes, main ]
+    branches: [ kubernetes, main, feature/abonnement ]
   pull_request:
-    branches: [ main,kubernetes]
+    branches: [ main, kubernetes, feature/abonnement ]
 
 jobs:
   lint:
@@ -244,6 +244,7 @@ jobs:
             --from-literal=pg_port="${{ secrets.PG_PORT }}" \
             --from-literal=pg_sslmode="${{ secrets.PGSSLMODE }}" \
             --from-literal=gin_mode="${{ secrets.GIN_MODE }}" \
+            --from-literal=stripe_webhook_secret="${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             --dry-run=client -o yaml > backend/infra/k8s/thinkshare-secrets.yaml
 
       - name: Create postgres-exporter-secrets

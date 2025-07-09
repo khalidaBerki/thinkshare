@@ -51,6 +51,11 @@ spec:
               key: db_password
         - name: PGSSLMODE
           value: "require"
+        - name: STRIPE_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: stripe_webhook_secret
 ---
 apiVersion: v1
 kind: Service
