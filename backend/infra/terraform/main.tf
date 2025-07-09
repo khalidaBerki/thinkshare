@@ -113,3 +113,9 @@ output "aks_node_public_ip" {
   value = azurerm_kubernetes_cluster.aks.default_node_pool[0].node_public_ip_prefix_id
   # Note : Pour obtenir l'IP publique réelle, il faudra utiliser 'kubectl get nodes -o wide' après déploiement
 }
+
+resource "azurerm_key_vault_secret" "stripe_secret_key" {
+  name         = "STRIPE_SECRET_KEY"
+  value        = var.stripe_secret_key
+  key_vault_id = azurerm_key_vault.vault.id
+}

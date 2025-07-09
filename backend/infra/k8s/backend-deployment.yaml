@@ -56,6 +56,18 @@ spec:
             secretKeyRef:
               name: thinkshare-secrets
               key: stripe_webhook_secret
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: stripe_secret_key
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "thinkshare-secrets"
 ---
 apiVersion: v1
 kind: Service
