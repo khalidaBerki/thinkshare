@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
-import 'dart:html' as html;
+import 'package:flutter/foundation.dart';
 import '../../data/home_repository.dart';
+import 'web_reload_stub.dart' if (dart.library.html) 'web_reload.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -105,21 +106,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       List<MultipartFile>? documents;
 
       if (_images.isNotEmpty) {
-        images = [
-          for (final img in _images)
-            if (img.bytes != null)
-              MultipartFile.fromBytes(img.bytes!, filename: img.name),
-        ];
+        images = _images
+            .where((img) => img.bytes != null)
+            .map((img) => MultipartFile.fromBytes(img.bytes!, filename: img.name))
+            .toList();
       }
       if (_video != null && _video!.bytes != null) {
         video = MultipartFile.fromBytes(_video!.bytes!, filename: _video!.name);
       }
       if (_documents.isNotEmpty) {
-        documents = [
-          for (final doc in _documents)
-            if (doc.bytes != null)
-              MultipartFile.fromBytes(doc.bytes!, filename: doc.name),
-        ];
+        documents = _documents
+            .where((doc) => doc.bytes != null)
+            .map((doc) => MultipartFile.fromBytes(doc.bytes!, filename: doc.name))
+            .toList();
       }
 
       await _repository.createPost(
@@ -140,7 +139,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ),
         );
         await Future.delayed(const Duration(seconds: 3));
-        html.window.location.reload();
+        if (kIsWeb) {
+          reloadPage();
+        } else {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+        }
       }
     } on DioException catch (e) {
       setState(() {
@@ -266,7 +271,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceVariant.withOpacity(0.7),
+                          color: colorScheme.surfaceContainerHighest.withOpacity(0.7),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
@@ -309,7 +314,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          fillColor: colorScheme.surfaceVariant.withOpacity(
+                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(
                             0.5,
                           ),
                           filled: true,
