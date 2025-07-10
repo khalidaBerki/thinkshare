@@ -145,6 +145,7 @@ jobs:
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources
 
       - name: Terraform Import PostgreSQL Flexible Server
@@ -162,6 +163,7 @@ jobs:
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
 
       - name: Terraform Import Key Vault
@@ -179,6 +181,7 @@ jobs:
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv
 
       - name: Terraform Import AKS Cluster
@@ -196,6 +199,7 @@ jobs:
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
 
       - name: Terraform Apply
@@ -212,7 +216,8 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}"
+            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}"
 
   k8s-deploy:
     name: Deploy to AKS (Kubernetes)
@@ -249,6 +254,7 @@ jobs:
             --from-literal=pg_port="${{ secrets.PG_PORT }}" \
             --from-literal=pg_sslmode="${{ secrets.PGSSLMODE }}" \
             --from-literal=gin_mode="${{ secrets.GIN_MODE }}" \
+            --from-literal=stripe_secret_key="${{ secrets.STRIPE_SECRET_KEY }}" \
             --from-literal=stripe_webhook_secret="${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             --dry-run=client -o yaml > backend/infra/k8s/thinkshare-secrets.yaml
 
