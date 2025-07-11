@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 
 import 'package:go_router/go_router.dart';
 import '../widgets/media_carousel.dart';
 import '../widgets/comment_section.dart';
 import '../../data/home_repository.dart';
+import '../../../../services/payment_service.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final String postId;
@@ -138,6 +140,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final creator = post!['creator'] ?? {};
     final mediaUrls = List<String>.from(post!['media_urls'] ?? []);
     final isPrivate = post!['visibility'] == 'private';
+    final isPaidOnly = post!['is_paid_only'] == true;
+    final monthlyPrice = post!['creator']?['monthly_price'];
+    final hasAccess = post!['has_access'] == true;
+    final isRestricted = post!['has_access'] == false;
 
     return Scaffold(
       appBar: AppBar(
@@ -232,8 +238,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    if (isPrivate)
-                      _PrivatePostBanner()
+                    if (!hasAccess && isPaidOnly && monthlyPrice != null && monthlyPrice > 0)
+                      UpgradeBanner(creatorId: creator['id'])
                     else ...[
                       Text(
                         post!['content'] ?? '',
@@ -289,7 +295,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 }
 
-class _PrivatePostBanner extends StatelessWidget {
+// Remplacer les deux anciennes bannières par une seule bannière universelle
+class UpgradeBanner extends StatelessWidget {
+  final int? creatorId;
+  const UpgradeBanner({super.key, this.creatorId});
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -297,16 +307,16 @@ class _PrivatePostBanner extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: colorScheme.error.withOpacity(0.08),
-        border: Border.all(color: colorScheme.error),
+        color: colorScheme.primary.withOpacity(0.08),
+        border: Border.all(color: colorScheme.primary),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         children: [
           Text(
-            "To view this private post, you must upgrade to premium",
+            "🔒 Ce contenu est réservé. Abonnez-vous ou payez pour y accéder !",
             style: TextStyle(
-              color: colorScheme.error,
+              color: colorScheme.primary,
               fontFamily: 'Montserrat',
               fontWeight: FontWeight.bold,
               fontSize: 15,
@@ -314,22 +324,70 @@ class _PrivatePostBanner extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 10),
-          ElevatedButton(
+          ElevatedButton.icon(
+            icon: const Icon(Icons.payment),
             style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.error,
-              foregroundColor: colorScheme.onError,
+              backgroundColor: colorScheme.primary,
+              foregroundColor: colorScheme.onPrimary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             ),
-            onPressed: () {
-              // TODO: Upgrade action
-            },
-            child: const Text("Upgrade to premium"),
+            onPressed: () => _handlePayAction(context),
+            label: const Text("Accéder et payer"),
           ),
         ],
       ),
     );
+  }
+
+  void _handlePayAction(BuildContext context) async {
+    if (creatorId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erreur: ID du créateur manquant')),
+      );
+      return;
+    }
+    try {
+      final paymentService = PaymentService();
+      final checkoutUrl = await paymentService.createSubscriptionSession(
+        creatorId: creatorId!,
+        type: 'paid',
+      );
+      await Clipboard.setData(ClipboardData(text: checkoutUrl));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.link, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Lien de paiement copié! Collez-le dans votre navigateur pour payer.'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (e is DioException && e.response?.data != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur Stripe: [${'e.response?.data'}'), backgroundColor: Colors.red),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 }

@@ -17,6 +17,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final _contentController = TextEditingController();
   String _visibility = 'public';
   String? _documentType;
+  bool _isPaidOnly = false; // Nouveau champ pour les posts payants
   List<PlatformFile> _images = [];
   PlatformFile? _video;
   List<PlatformFile> _documents = [];
@@ -125,6 +126,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         content: _contentController.text.trim(),
         visibility: _visibility,
         documentType: _documentType,
+        isPaidOnly: _isPaidOnly,
         images: images,
         video: video,
         documents: documents,
@@ -344,6 +346,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               fontWeight: FontWeight.bold,
                               fontFamily: 'Montserrat',
                             ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _isPaidOnly,
+                            onChanged: (v) => setState(() => _isPaidOnly = v ?? false),
+                            activeColor: colorScheme.primary,
+                          ),
+                          const Text(
+                            "Rendre ce post payant (réservé aux abonnés)",
+                            style: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),

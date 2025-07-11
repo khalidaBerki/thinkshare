@@ -163,7 +163,9 @@ func main() {
 		api.PUT("/profile", user.UpdateProfileHandler)
 		api.GET("/users/:id", user.GetUserProfileHandler)
 		api.POST("/subscribe", subscription.SubscribeHandler)
-		api.POST("/subscribe/paid", subscription.SubscribePaidStripeHandler)
+		// 💳 Routes paiement Stripe (abonnement payant, one-shot, webhook)
+		api.POST("/subscribe/paid", subscription.SubscribePaidStripeHandler) // Crée une session Stripe pour abonnement
+		r.POST("/api/payment/webhook", payment.StripeWebhookHandler)         // Webhook Stripe (public)
 		api.POST("/unsubscribe", subscription.UnsubscribeHandler)
 		api.GET("/followers/:id", subscription.GetFollowersByUserHandler)
 		api.GET("/subscriptions", subscription.GetMySubscriptionsHandler)

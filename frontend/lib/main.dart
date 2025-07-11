@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uni_links/uni_links.dart';
+import 'dart:async';
+
 import 'config/app_theme.dart';
 import 'providers/theme_provider.dart';
 import 'config/app_routes.dart';
@@ -21,8 +24,41 @@ void main() {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  StreamSubscription? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinkListener();
+  }
+
+  void _initDeepLinkListener() {
+    _sub = uriLinkStream.listen((Uri? uri) {
+      if (uri != null && uri.scheme == 'thinkshare' && uri.host == 'post') {
+        final postId = uri.pathSegments.isNotEmpty ? uri.pathSegments[0] : null;
+        if (postId != null) {
+          // Naviguer vers la page du post (adapter selon ton router)
+          appRouter.go('/post/$postId');
+        }
+      }
+    }, onError: (err) {
+      // Gérer les erreurs de deep link si besoin
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

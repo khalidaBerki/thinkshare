@@ -57,6 +57,7 @@ class HomeApi {
     required String content,
     required String visibility,
     String? documentType,
+    bool isPaidOnly = false,
     List<MultipartFile>? images,
     MultipartFile? video,
     List<MultipartFile>? documents,
@@ -65,7 +66,8 @@ class HomeApi {
 
     formData.fields
       ..add(MapEntry('content', content))
-      ..add(MapEntry('visibility', visibility));
+      ..add(MapEntry('visibility', visibility))
+      ..add(MapEntry('is_paid_only', isPaidOnly.toString()));
     if (documentType != null) {
       formData.fields.add(MapEntry('document_type', documentType));
     }

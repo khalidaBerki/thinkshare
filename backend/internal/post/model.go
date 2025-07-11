@@ -18,6 +18,7 @@ const (
 type CreatePostInput struct {
 	Content      string        `json:"content" binding:"required"`
 	Visibility   Visibility    `json:"visibility" binding:"required,oneof=public private"`
+	IsPaidOnly   bool          `json:"is_paid_only"` // Nouveau champ pour création
 	DocumentType string        `json:"document_type,omitempty"`
 	Media        []media.Media `json:"media"`
 }
@@ -25,6 +26,7 @@ type CreatePostInput struct {
 type UpdatePostInput struct {
 	Content      string     `json:"content"`
 	Visibility   Visibility `json:"visibility" binding:"omitempty,oneof=public private"`
+	IsPaidOnly   *bool      `json:"is_paid_only,omitempty"` // Pointeur pour permettre la mise à jour
 	DocumentType string     `json:"document_type,omitempty"`
 }
 
@@ -33,6 +35,7 @@ type Post struct {
 	CreatorID    uint       `gorm:"not null;index"`
 	Content      string     `gorm:"type:text"`
 	Visibility   Visibility `gorm:"type:varchar(10);default:'public'"`
+	IsPaidOnly   bool       `gorm:"default:false"` // Nouveau champ pour les posts payants
 	DocumentType string     `gorm:"type:varchar(50)"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
@@ -47,6 +50,7 @@ type PostDTO struct {
 	CreatorID    uint      `json:"creator_id"`
 	Content      string    `json:"content"`
 	Visibility   string    `json:"visibility"`
+	IsPaidOnly   bool      `json:"is_paid_only"`
 	DocumentType string    `json:"document_type,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -59,13 +63,17 @@ type PostDTO struct {
 
 	// Informations du créateur
 	Creator *CreatorInfo `json:"creator,omitempty"`
+
+	// Contrôle d'accès
+	HasAccess bool `json:"has_access"` // Indique si l'utilisateur peut voir le contenu
 }
 
 type CreatorInfo struct {
-	ID        uint   `json:"id"`
-	Username  string `json:"username"`
-	FullName  string `json:"full_name"`
-	AvatarURL string `json:"avatar_url,omitempty"`
+	ID           uint    `json:"id"`
+	Username     string  `json:"username"`
+	FullName     string  `json:"full_name"`
+	AvatarURL    string  `json:"avatar_url,omitempty"`
+	MonthlyPrice float64 `json:"monthly_price"` // Ajouté pour le feed Flutter
 }
 
 // Vérifie que le modèle User existe bien dans ton projet avec les champs suivants :

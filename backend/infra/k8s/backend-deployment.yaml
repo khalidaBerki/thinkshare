@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: thinkshare-backend
-        image: khalidaber/thinkshare-backend:v1.3
+        image: khalidaber/thinkshare-backend:v1.4
         ports:
         - containerPort: 8080
         env:
@@ -61,6 +61,16 @@ spec:
             secretKeyRef:
               name: thinkshare-secrets
               key: stripe_secret_key
+        - name: STRIPE_SUCCESS_URL
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: stripe_success_url
+        - name: STRIPE_CANCEL_URL
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: stripe_cancel_url
       volumes:
         - name: secrets-store-inline
           csi:

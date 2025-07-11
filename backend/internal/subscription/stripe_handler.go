@@ -12,6 +12,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// SubscribePaidStripeHandler godoc
+// @Summary Crée une session Stripe pour l’abonnement payant
+// @Tags Subscription
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param input body SubscriptionInput true "Données d’abonnement"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/subscribe/paid [post]
 // SubscribePaidStripeHandler : Crée une session Stripe pour l'abonnement mensuel
 func SubscribePaidStripeHandler(c *gin.Context) {
 	var input SubscriptionInput
