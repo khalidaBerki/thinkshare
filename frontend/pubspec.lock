@@ -45,14 +45,6 @@ packages:
     dependency: transitive
     description:
       name: cross_file
-      sha256: fedaadfa3a6996f75211d835aaeb8fede285dae94262485698afd832371b9a5e
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.3.3+8"
-  cross_file:
-    dependency: transitive
-    description:
-      name: cross_file
       sha256: "7caf6a750a0c04effbb52a676dce9a4a592e10ad35c34d6d2d0e4811160d5670"
       url: "https://pub.dev"
     source: hosted
@@ -80,7 +72,7 @@ packages:
       sha256: "7586e476d70caecaf1686d21eee7247ea43ef5c345eab9e0cc3583ff13378d78"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.1"
+    version: "2.1.1"
   equatable:
     dependency: transitive
     description:
@@ -89,7 +81,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.7"
-    version: "2.1.1"
   fake_async:
     dependency: transitive
     description:
@@ -121,7 +112,7 @@ packages:
       sha256: ef9908739bdd9c476353d6adff72e88fd00c625f5b959ae23f7567bd5137db0a
       url: "https://pub.dev"
     source: hosted
-    version: "6.2.1"
+    version: "10.2.0"
   file_selector_linux:
     dependency: transitive
     description:
@@ -162,7 +153,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.66.2"
-    version: "10.2.0"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -238,10 +228,10 @@ packages:
     dependency: transitive
     description:
       name: image_picker_for_web
-      sha256: e2423c53a68b579a7c37a1eda967b8ae536c3d98518e5db95ca1fe5719a730a3
+      sha256: "717eb042ab08c40767684327be06a5d8dbb341fe791d514e4b92c7bbe1b7bb83"
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.2"
+    version: "3.0.6"
   image_picker_ios:
     dependency: transitive
     description:
@@ -358,10 +348,10 @@ packages:
     dependency: transitive
     description:
       name: mime
-      sha256: "801fd0b26f14a4a58ccb09d5892c3fbdeff209594300a542492cf13fba9d247a"
+      sha256: "41a20518f0cb1256669420fdba0cd90d21561e560ac240f26ef8322e45bb7ed6"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.6"
+    version: "2.0.0"
   nested:
     dependency: transitive
     description:
