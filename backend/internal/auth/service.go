@@ -8,18 +8,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// ✅ On récupère la clé secrète à partir d'une variable d'environnement, sinon on utilise une valeur par défaut (utile pour le DEV).
 var jwtKey = []byte(getSecret())
 
 func getSecret() string {
 	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		return "supersecretkey" // 🔐 Valeur par défaut utilisée en développement (à ne PAS utiliser en prod)
-	}
-	return secret // 🔐 En production, on configure JWT_SECRET dans le serveur/env
+	return secret
 }
 
-// ✅ Fonction pour générer un JWT à partir d’un ID utilisateur.
 func GenerateJWT(userID int) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,                                // Payload : ID de l'utilisateur
@@ -30,7 +25,6 @@ func GenerateJWT(userID int) (string, error) {
 	return token.SignedString(jwtKey)
 }
 
-// ✅ Fonction pour lire un JWT et récupérer l'ID utilisateur depuis le token
 func ParseJWT(tokenStr string) (int, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil

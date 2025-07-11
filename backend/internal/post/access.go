@@ -3,25 +3,32 @@ package post
 import (
 	"backend/internal/db"
 	"backend/internal/models"
+	"log"
 )
 
 // CheckPostAccess vérifie si un utilisateur a accès à un post payant
 func CheckPostAccess(userID uint, creatorID uint, isPaidOnly bool) bool {
 	// Si le post n'est pas payant, accès libre
 	if !isPaidOnly {
+		log.Printf("[ACCESS] userID=%d, creatorID=%d, isPaidOnly=%v => accès libre", userID, creatorID, isPaidOnly)
 		return true
 	}
 
 	// Si c'est le créateur lui-même
 	if userID == creatorID {
+		log.Printf("[ACCESS] userID=%d est le créateur (creatorID=%d) => accès libre", userID, creatorID)
 		return true
 	}
 
 	// Nouvelle logique : si l'utilisateur a au moins une subscription active (peu importe le type/status)
 	var count int64
-	db.GormDB.Model(&models.Subscription{}).
+	err := db.GormDB.Model(&models.Subscription{}).
 		Where("subscriber_id = ? AND creator_id = ? AND is_active = ?", userID, creatorID, true).
-		Count(&count)
+		Count(&count).Error
+	if err != nil {
+		log.Printf("[ACCESS][ERROR] Erreur DB lors du comptage des subscriptions: %v", err)
+	}
+	log.Printf("[ACCESS] userID=%d, creatorID=%d, isPaidOnly=%v, nb_subscriptions_actives=%d", userID, creatorID, isPaidOnly, count)
 
 	return count > 0
 }

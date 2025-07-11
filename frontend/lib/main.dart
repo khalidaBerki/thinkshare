@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uni_links/uni_links.dart';
+import 'package:app_links/app_links.dart';
 import 'dart:async';
 
 import 'config/app_theme.dart';
@@ -9,6 +9,7 @@ import 'config/app_routes.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/home/presentation/providers/home_provider.dart';
 import 'features/message/presentation/providers/message_provider.dart';
+import 'features/profile/presentation/providers/profile_provider.dart';
 
 void main() {
   runApp(
@@ -18,6 +19,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => HomeProvider()),
         ChangeNotifierProvider(create: (_) => MessageProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
       ],
       child: const MyApp(),
     ),
@@ -33,16 +35,18 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   StreamSubscription? _sub;
+  late AppLinks _appLinks;
 
   @override
   void initState() {
     super.initState();
+    _appLinks = AppLinks();
     _initDeepLinkListener();
   }
 
   void _initDeepLinkListener() {
-    _sub = uriLinkStream.listen((Uri? uri) {
-      if (uri != null && uri.scheme == 'thinkshare' && uri.host == 'post') {
+    _sub = _appLinks.uriLinkStream.listen((Uri uri) {
+      if (uri.scheme == 'thinkshare' && uri.host == 'post') {
         final postId = uri.pathSegments.isNotEmpty ? uri.pathSegments[0] : null;
         if (postId != null) {
           // Naviguer vers la page du post (adapter selon ton router)

@@ -154,7 +154,6 @@ func main() {
 
 	// Route publique pour le webhook Stripe (avant les routes protégées)
 	r.POST("/api/payment/webhook", payment.StripeWebhookHandler)
-
 	// 🔐 Routes API protégées
 	api := r.Group("/api", auth.AuthMiddleware())
 	{
@@ -165,7 +164,7 @@ func main() {
 		api.POST("/subscribe", subscription.SubscribeHandler)
 		// 💳 Routes paiement Stripe (abonnement payant, one-shot, webhook)
 		api.POST("/subscribe/paid", subscription.SubscribePaidStripeHandler) // Crée une session Stripe pour abonnement
-		r.POST("/api/payment/webhook", payment.StripeWebhookHandler)         // Webhook Stripe (public)
+
 		api.POST("/unsubscribe", subscription.UnsubscribeHandler)
 		api.GET("/followers/:id", subscription.GetFollowersByUserHandler)
 		api.GET("/subscriptions", subscription.GetMySubscriptionsHandler)
@@ -200,6 +199,9 @@ func main() {
 
 	// Endpoint pour les métriques Prometheus (toujours accessible)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Servir les fichiers statiques du dossier uploads
+	r.Static("/uploads", "./uploads")
 
 	// Port dynamique
 	port := os.Getenv("PORT")

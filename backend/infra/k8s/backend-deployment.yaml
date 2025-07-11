@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: thinkshare-backend
-        image: khalidaber/thinkshare-backend:v1.4
+        image: khalidaber/thinkshare-backend:v1.6
         ports:
         - containerPort: 8080
         env:

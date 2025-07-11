@@ -5,6 +5,7 @@ import 'media_carousel.dart';
 import '../../../../config/api_config.dart';
 import 'package:provider/provider.dart';
 import '../../presentation/providers/home_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../services/payment_service.dart';
 import 'upgrade_banner.dart';
 
@@ -24,6 +25,12 @@ class PostCard extends StatelessWidget {
     final isPaidOnly = post['is_paid_only'] == true;
     final monthlyPrice = creator['monthly_price'];
     final username = creator['username'];
+    final currentUserId = Provider.of<AuthProvider>(
+      context,
+      listen: false,
+    ).userId;
+
+    print('hasAccess=$hasAccess, isPaidOnly=$isPaidOnly, monthlyPrice=$monthlyPrice, username=$username');
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -57,7 +64,12 @@ class PostCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(24),
                       onTap: () {
                         if (creator['id'] != null) {
-                          context.go('/user/${creator['id']}');
+                          if (creator['id'].toString() ==
+                              currentUserId.toString()) {
+                            context.go('/profile');
+                          } else {
+                            context.go('/user/${creator['id']}');
+                          }
                         }
                       },
                       child: CircleAvatar(
@@ -73,13 +85,20 @@ class PostCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                       onTap: () {
                         if (creator['id'] != null) {
-                          context.go('/user/${creator['id']}');
+                          if (creator['id'].toString() ==
+                              currentUserId.toString()) {
+                            context.go('/profile');
+                          } else {
+                            context.go('/user/${creator['id']}');
+                          }
                         }
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 2.0),
                         child: Text(
-                          creator['full_name'] ?? 'No Name',
+                          creator['full_name'] ??
+                              creator['username'] ??
+                              'No Name',
                           style: TextStyle(
                             fontFamily: 'Montserrat',
                             fontWeight: FontWeight.bold,
@@ -117,20 +136,21 @@ class PostCard extends StatelessWidget {
                       username: username,
                     )
                   else ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18.0,
-                        vertical: 4,
-                      ),
-                      child: Text(
-                        post['content'] ?? '',
-                        style: TextStyle(
-                          fontFamily: 'Montserrat',
-                          fontSize: 15,
-                          color: colorScheme.onSurface,
+                    if ((post['content'] ?? '').isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18.0,
+                          vertical: 4,
+                        ),
+                        child: Text(
+                          post['content'],
+                          style: TextStyle(
+                            fontFamily: 'Montserrat',
+                            fontSize: 15,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
                       ),
-                    ),
                     if (mediaUrls.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),

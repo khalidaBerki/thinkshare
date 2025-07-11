@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../services/payment_service.dart';
@@ -107,7 +108,14 @@ class UpgradeBanner extends StatelessWidget {
       );
       final uri = Uri.parse(checkoutUrl);
       if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        // Use different launch modes based on platform
+        if (kIsWeb) {
+          // For web, use platformDefault which opens in the same tab
+          await launchUrl(uri, mode: LaunchMode.platformDefault);
+        } else {
+          // For mobile, use externalApplication
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
       } else {
         throw Exception('Impossible d\'ouvrir le lien Stripe');
       }

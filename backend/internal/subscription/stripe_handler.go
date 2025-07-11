@@ -44,11 +44,11 @@ func SubscribePaidStripeHandler(c *gin.Context) {
 	}
 	if creator.MonthlyPrice <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Ce créateur n'a pas défini de prix d'abonnement payant"})
-		log.Printf("DEBUG: creator.MonthlyPrice = %v", creator.MonthlyPrice)
+		log.Printf("[STRIPE][ERROR] creatorID=%d, MonthlyPrice=%v", input.CreatorID, creator.MonthlyPrice)
 		return
 	}
 
-	log.Printf("DEBUG: creator.MonthlyPrice = %v", creator.MonthlyPrice)
+	log.Printf("[STRIPE] Création session Stripe: subscriberID=%d, creatorID=%d, price=%.2f", subscriberID, input.CreatorID, creator.MonthlyPrice)
 
 	subscriber, err := user.GetUserByID(uint(subscriberID))
 	if err != nil {

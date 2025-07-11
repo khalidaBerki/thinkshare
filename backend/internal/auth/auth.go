@@ -127,7 +127,10 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, TokenResponse{Token: token})
+	c.JSON(http.StatusOK, TokenResponse{
+		Token:  token,
+		UserID: u.ID,
+	})
 }
 
 // BeginAuthHandler godoc

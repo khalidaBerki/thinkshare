@@ -207,6 +207,7 @@ func (r *repository) GetPostsWithStats(posts []*Post, userID uint) ([]*PostDTO, 
 			CreatorID:    post.CreatorID,
 			Content:      post.Content,
 			Visibility:   string(post.Visibility),
+			IsPaidOnly:   post.IsPaidOnly, // <-- Ajouté pour le mapping correct
 			DocumentType: post.DocumentType,
 			CreatedAt:    post.CreatedAt,
 			UpdatedAt:    post.UpdatedAt,
