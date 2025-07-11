@@ -151,6 +151,8 @@ jobs:
       - name: Terraform Import Resource Group
         run: |
           cd backend/infra/terraform
+          echo "db_password: ${{ secrets.DB_PASSWORD }}"
+          echo "Importing Resource Group..."
           terraform import \
             -var="db_admin=${{ secrets.DB_ADMIN }}" \
             -var="db_name=${{ secrets.DB_NAME }}" \
@@ -164,11 +166,14 @@ jobs:
             -var="prefix=${{ secrets.PREFIX }}" \
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources
+            azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources || echo "Resource Group import failed!"
+          terraform state list
 
       - name: Terraform Import PostgreSQL Flexible Server
         run: |
           cd backend/infra/terraform
+          echo "db_password: ${{ secrets.DB_PASSWORD }}"
+          echo "Importing PostgreSQL Flexible Server..."
           terraform import \
             -var="db_admin=${{ secrets.DB_ADMIN }}" \
             -var="db_name=${{ secrets.DB_NAME }}" \
@@ -182,11 +187,14 @@ jobs:
             -var="prefix=${{ secrets.PREFIX }}" \
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
+            azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2 || echo "PostgreSQL import failed!"
+          terraform state list
 
       - name: Terraform Import Key Vault
         run: |
           cd backend/infra/terraform
+          echo "db_password: ${{ secrets.DB_PASSWORD }}"
+          echo "Importing Key Vault..."
           terraform import \
             -var="db_admin=${{ secrets.DB_ADMIN }}" \
             -var="db_name=${{ secrets.DB_NAME }}" \
@@ -200,11 +208,14 @@ jobs:
             -var="prefix=${{ secrets.PREFIX }}" \
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv
+            azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv || echo "Key Vault import failed!"
+          terraform state list
 
       - name: Terraform Import AKS Cluster
         run: |
           cd backend/infra/terraform
+          echo "db_password: ${{ secrets.DB_PASSWORD }}"
+          echo "Importing AKS Cluster..."
           terraform import \
             -var="db_admin=${{ secrets.DB_ADMIN }}" \
             -var="db_name=${{ secrets.DB_NAME }}" \
@@ -218,7 +229,8 @@ jobs:
             -var="prefix=${{ secrets.PREFIX }}" \
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
+            azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks || echo "AKS import failed!"
+          terraform state list
       - name: Import Key Vault secrets (Stripe)
         run: |
           set +e
