@@ -359,4 +359,3 @@ jobs:
       - name: Check rollout status postgres-exporter
         run: kubectl rollout status deployment/postgres-exporter -n monitoring
 
-    
