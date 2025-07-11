@@ -2,9 +2,9 @@ name: CI CD Thinkshare Backend
 
 on:
   push:
-    branches: [ kubernetes, main, feature/abonnement ]
+    branches: [ feature/abonnement, main ]
   pull_request:
-    branches: [ main, kubernetes, feature/abonnement ]
+    branches: [ main,feature/abonnement]
 
 jobs:
   lint:
@@ -70,24 +70,6 @@ jobs:
         run: cd backend && go mod download
       - name: Debug env
         run: env | grep PG
-      
-      - name: Create subscriptions table for tests
-        run: |
-          psql -h localhost -U test -d testdb -c "
-            CREATE TABLE IF NOT EXISTS subscriptions (
-              id SERIAL PRIMARY KEY,
-              subscriber_id BIGINT NOT NULL,
-              creator_id BIGINT NOT NULL,
-              start_date TIMESTAMP,
-              end_date TIMESTAMP,
-              is_active BOOLEAN DEFAULT true,
-              type TEXT,
-              stripe_subscription_id TEXT
-            );
-          "
-        env:
-          PGPASSWORD: test
-
       - name: Run integration tests
         run: cd backend && go test -v ./tests/integration/...
 
@@ -151,8 +133,6 @@ jobs:
       - name: Terraform Import Resource Group
         run: |
           cd backend/infra/terraform
-          echo "db_password: ${{ secrets.DB_PASSWORD }}"
-          echo "Importing Resource Group..."
           terraform import \
             -var="db_admin=${{ secrets.DB_ADMIN }}" \
             -var="db_name=${{ secrets.DB_NAME }}" \
@@ -164,16 +144,11 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources || echo "Resource Group import failed!"
-          terraform state list
+            azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources
 
       - name: Terraform Import PostgreSQL Flexible Server
         run: |
           cd backend/infra/terraform
-          echo "db_password: ${{ secrets.DB_PASSWORD }}"
-          echo "Importing PostgreSQL Flexible Server..."
           terraform import \
             -var="db_admin=${{ secrets.DB_ADMIN }}" \
             -var="db_name=${{ secrets.DB_NAME }}" \
@@ -185,16 +160,11 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2 || echo "PostgreSQL import failed!"
-          terraform state list
+            azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
 
       - name: Terraform Import Key Vault
         run: |
           cd backend/infra/terraform
-          echo "db_password: ${{ secrets.DB_PASSWORD }}"
-          echo "Importing Key Vault..."
           terraform import \
             -var="db_admin=${{ secrets.DB_ADMIN }}" \
             -var="db_name=${{ secrets.DB_NAME }}" \
@@ -206,16 +176,11 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv || echo "Key Vault import failed!"
-          terraform state list
+            azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv
 
       - name: Terraform Import AKS Cluster
         run: |
           cd backend/infra/terraform
-          echo "db_password: ${{ secrets.DB_PASSWORD }}"
-          echo "Importing AKS Cluster..."
           terraform import \
             -var="db_admin=${{ secrets.DB_ADMIN }}" \
             -var="db_name=${{ secrets.DB_NAME }}" \
@@ -227,52 +192,7 @@ jobs:
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
             -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks || echo "AKS import failed!"
-          terraform state list
-      - name: Import Key Vault secrets (Stripe)
-        run: |
-          set +e
-          cd backend/infra/terraform
-          terraform init
-          terraform state rm azurerm_key_vault_secret.stripe_secret_key || true
-          terraform state rm azurerm_key_vault_secret.stripe_webhook_secret || true
-          set -e
-          # Import stripe-secret-key if it exists
-          echo "Checking for stripe-secret-key in Key Vault..."
-          az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-secret-key" --query "id" -o tsv
-          STRIPE_SECRET_ID=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-secret-key" --query "id" -o tsv 2>/dev/null)
-          echo "STRIPE_SECRET_ID: $STRIPE_SECRET_ID"
-          if [ -n "$STRIPE_SECRET_ID" ]; then
-            STRIPE_SECRET_VERSION=$(echo "$STRIPE_SECRET_ID" | awk -F'/' '{print $NF}')
-            echo "STRIPE_SECRET_VERSION: $STRIPE_SECRET_VERSION"
-            STRIPE_SECRET_IMPORT_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key/$STRIPE_SECRET_VERSION"
-            echo "STRIPE_SECRET_IMPORT_ID: $STRIPE_SECRET_IMPORT_ID"
-            terraform import azurerm_key_vault_secret.stripe_secret_key "$STRIPE_SECRET_IMPORT_ID"
-          else
-            echo "stripe-secret-key not found in Key Vault, skipping import."
-          fi
-          # Import stripe-webhook-secret if it exists
-          echo "Checking for stripe-webhook-secret in Key Vault..."
-          az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-webhook-secret" --query "id" -o tsv
-          STRIPE_WEBHOOK_ID=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-webhook-secret" --query "id" -o tsv 2>/dev/null)
-          echo "STRIPE_WEBHOOK_ID: $STRIPE_WEBHOOK_ID"
-          if [ -n "$STRIPE_WEBHOOK_ID" ]; then
-            STRIPE_WEBHOOK_VERSION=$(echo "$STRIPE_WEBHOOK_ID" | awk -F'/' '{print $NF}')
-            echo "STRIPE_WEBHOOK_VERSION: $STRIPE_WEBHOOK_VERSION"
-            STRIPE_WEBHOOK_IMPORT_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-webhook-secret/$STRIPE_WEBHOOK_VERSION"
-            echo "STRIPE_WEBHOOK_IMPORT_ID: $STRIPE_WEBHOOK_IMPORT_ID"
-            terraform import azurerm_key_vault_secret.stripe_webhook_secret "$STRIPE_WEBHOOK_IMPORT_ID"
-          else
-            echo "stripe-webhook-secret not found in Key Vault, skipping import."
-          fi
-        env:
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          PREFIX: ${{ secrets.PREFIX }}
+            azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
 
       - name: Terraform Apply
         run: |
@@ -287,9 +207,7 @@ jobs:
             -var="gin_mode=${{ secrets.GIN_MODE }}" \
             -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
             -var="location=${{ secrets.LOCATION }}" \
-            -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}"
+            -var="prefix=${{ secrets.PREFIX }}"
 
   k8s-deploy:
     name: Deploy to AKS (Kubernetes)
@@ -326,8 +244,6 @@ jobs:
             --from-literal=pg_port="${{ secrets.PG_PORT }}" \
             --from-literal=pg_sslmode="${{ secrets.PGSSLMODE }}" \
             --from-literal=gin_mode="${{ secrets.GIN_MODE }}" \
-            --from-literal=stripe_secret_key="${{ secrets.STRIPE_SECRET_KEY }}" \
-            --from-literal=stripe_webhook_secret="${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             --dry-run=client -o yaml > backend/infra/k8s/thinkshare-secrets.yaml
 
       - name: Create postgres-exporter-secrets
@@ -393,4 +309,3 @@ jobs:
 
       - name: Check rollout status postgres-exporter
         run: kubectl rollout status deployment/postgres-exporter -n monitoring
-
