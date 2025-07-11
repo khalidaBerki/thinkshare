@@ -110,7 +110,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   // Optionnel : pour extraire le message d'erreur de l'API (si Dio ou http)
   String _extractApiError(Object error) {
-    if (error is DioError) {
+    if (error is DioException) {
       try {
         final data = error.response?.data;
         if (data is Map && data['error'] != null) {
@@ -154,7 +154,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         title: const Text("Post Detail"),
         centerTitle: true,
       ),
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(18.0),
         child: Center(

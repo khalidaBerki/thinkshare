@@ -43,7 +43,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Home Feed'), centerTitle: true),
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: RefreshIndicator(
         onRefresh: () => provider.loadPosts(refresh: true),
         child: ListView.builder(

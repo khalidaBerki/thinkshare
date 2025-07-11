@@ -1,7 +1,7 @@
-# Terraform state
-.terraform/
+# Terraform
 *.tfstate
-*.tfstate.backup
+*.tfstate.*
+.terraform/
 
 # Variables sensibles
 terraform.tfvars
@@ -20,3 +20,15 @@ terraform.tfvars
 __pycache__/
 .env
 .env.*
+
+# Fichiers/dossiers temporaires
+CACHED
+ERROR
+[auth]
+[builder
+[internal]
+[stage-1
+transferring
+=
+!backend/infra/k8s/monitoring/
+!backend/infra/k8s/monitoring/*
