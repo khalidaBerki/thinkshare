@@ -227,12 +227,24 @@ jobs:
           terraform state rm azurerm_key_vault_secret.stripe_secret_key || true
           terraform state rm azurerm_key_vault_secret.stripe_webhook_secret || true
           set -e
-          STRIPE_SECRET_VERSION=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-secret-key" --query "id" -o tsv | awk -F'/' '{print $NF}')
-          STRIPE_SECRET_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key/$STRIPE_SECRET_VERSION"
-          terraform import azurerm_key_vault_secret.stripe_secret_key "$STRIPE_SECRET_ID"
-          STRIPE_WEBHOOK_VERSION=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-webhook-secret" --query "id" -o tsv | awk -F'/' '{print $NF}')
-          STRIPE_WEBHOOK_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-webhook-secret/$STRIPE_WEBHOOK_VERSION"
-          terraform import azurerm_key_vault_secret.stripe_webhook_secret "$STRIPE_WEBHOOK_ID"
+          # Import stripe-secret-key if it exists
+          STRIPE_SECRET_ID=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-secret-key" --query "id" -o tsv 2>/dev/null)
+          if [ -n "$STRIPE_SECRET_ID" ]; then
+            STRIPE_SECRET_VERSION=$(echo "$STRIPE_SECRET_ID" | awk -F'/' '{print $NF}')
+            STRIPE_SECRET_IMPORT_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key/$STRIPE_SECRET_VERSION"
+            terraform import azurerm_key_vault_secret.stripe_secret_key "$STRIPE_SECRET_IMPORT_ID"
+          else
+            echo "stripe-secret-key not found in Key Vault, skipping import."
+          fi
+          # Import stripe-webhook-secret if it exists
+          STRIPE_WEBHOOK_ID=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-webhook-secret" --query "id" -o tsv 2>/dev/null)
+          if [ -n "$STRIPE_WEBHOOK_ID" ]; then
+            STRIPE_WEBHOOK_VERSION=$(echo "$STRIPE_WEBHOOK_ID" | awk -F'/' '{print $NF}')
+            STRIPE_WEBHOOK_IMPORT_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-webhook-secret/$STRIPE_WEBHOOK_VERSION"
+            terraform import azurerm_key_vault_secret.stripe_webhook_secret "$STRIPE_WEBHOOK_IMPORT_ID"
+          else
+            echo "stripe-webhook-secret not found in Key Vault, skipping import."
+          fi
         env:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
