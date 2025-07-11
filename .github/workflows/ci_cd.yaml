@@ -340,3 +340,25 @@ jobs:
       - name: Check rollout status postgres-exporter
         run: kubectl rollout status deployment/postgres-exporter -n monitoring
 
+      - name: Import Key Vault secrets (Stripe)
+        run: |
+          set -e
+          # Récupère la version du secret stripe_secret_key
+          STRIPE_SECRET_VERSION=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-secret-key" --query "id" -o tsv | awk -F'/' '{print $NF}')
+          # Construit l’ID versionné
+          STRIPE_SECRET_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key/$STRIPE_SECRET_VERSION"
+          # Importe dans Terraform
+          cd backend/infra/terraform
+          terraform import azurerm_key_vault_secret.stripe_secret_key "$STRIPE_SECRET_ID"
+
+          # Même chose pour stripe_webhook_secret
+          STRIPE_WEBHOOK_VERSION=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-webhook-secret" --query "id" -o tsv | awk -F'/' '{print $NF}')
+          STRIPE_WEBHOOK_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-webhook-secret/$STRIPE_WEBHOOK_VERSION"
+          terraform import azurerm_key_vault_secret.stripe_webhook_secret "$STRIPE_WEBHOOK_ID"
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          PREFIX: ${{ secrets.PREFIX }}
+
