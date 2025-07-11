@@ -70,6 +70,24 @@ jobs:
         run: cd backend && go mod download
       - name: Debug env
         run: env | grep PG
+      
+      - name: Create subscriptions table for tests
+        run: |
+          psql -h localhost -U test -d testdb -c "
+            CREATE TABLE IF NOT EXISTS subscriptions (
+              id SERIAL PRIMARY KEY,
+              subscriber_id BIGINT NOT NULL,
+              creator_id BIGINT NOT NULL,
+              start_date TIMESTAMP,
+              end_date TIMESTAMP,
+              is_active BOOLEAN DEFAULT true,
+              type TEXT,
+              stripe_subscription_id TEXT
+            );
+          "
+        env:
+          PGPASSWORD: test
+
       - name: Run integration tests
         run: cd backend && go test -v ./tests/integration/...
 
@@ -322,19 +340,3 @@ jobs:
       - name: Check rollout status postgres-exporter
         run: kubectl rollout status deployment/postgres-exporter -n monitoring
 
-      - name: Create subscriptions table for tests
-        run: |
-          psql -h localhost -U test -d testdb -c "
-            CREATE TABLE IF NOT EXISTS subscriptions (
-              id SERIAL PRIMARY KEY,
-              subscriber_id BIGINT NOT NULL,
-              creator_id BIGINT NOT NULL,
-              start_date TIMESTAMP,
-              end_date TIMESTAMP,
-              is_active BOOLEAN DEFAULT true,
-              type TEXT,
-              stripe_subscription_id TEXT
-            );
-          "
-        env:
-          PGPASSWORD: test
