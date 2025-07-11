@@ -343,12 +343,14 @@ jobs:
       - name: Import Key Vault secrets (Stripe)
         run: |
           set -e
+          cd backend/infra/terraform
+          # Supprime du state si déjà présent (évite les conflits d'import)
+          terraform state rm azurerm_key_vault_secret.stripe_secret_key || true
+          terraform state rm azurerm_key_vault_secret.stripe_webhook_secret || true
+
           # Récupère la version du secret stripe_secret_key
           STRIPE_SECRET_VERSION=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-secret-key" --query "id" -o tsv | awk -F'/' '{print $NF}')
-          # Construit l’ID versionné
           STRIPE_SECRET_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key/$STRIPE_SECRET_VERSION"
-          # Importe dans Terraform
-          cd backend/infra/terraform
           terraform import azurerm_key_vault_secret.stripe_secret_key "$STRIPE_SECRET_ID"
 
           # Même chose pour stripe_webhook_secret
