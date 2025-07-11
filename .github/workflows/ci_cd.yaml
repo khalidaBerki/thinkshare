@@ -68,12 +68,6 @@ jobs:
           go-version: '1.22'
       - name: Install dependencies
         run: cd backend && go mod download
-      - name: Set up PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Initialize test database schema
-        run: psql -h localhost -U $PGUSER -d $PGDATABASE -f backend/docs/schema.sql
-        env:
-          PGPASSWORD: ${{ env.PGPASSWORD }}
       - name: Debug env
         run: env | grep PG
       - name: Run integration tests
