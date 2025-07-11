@@ -219,7 +219,7 @@ jobs:
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
-        - name: Import Key Vault secrets (Stripe)
+      - name: Import Key Vault secrets (Stripe)
         run: |
           set -e
           cd backend/infra/terraform
@@ -238,7 +238,7 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           PREFIX: ${{ secrets.PREFIX }}
-          
+
       - name: Terraform Apply
         run: |
           cd backend/infra/terraform
