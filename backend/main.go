@@ -190,6 +190,9 @@ func main() {
 		log.Printf("✅ Routes API protégées configurées")
 	}
 
+	// Servir les fichiers statiques du dossier uploads
+	r.Static("/uploads", "./uploads")
+
 	// Port dynamique
 	port := os.Getenv("PORT")
 	if port == "" {
