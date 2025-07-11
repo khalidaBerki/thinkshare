@@ -219,7 +219,26 @@ jobs:
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
             azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
-
+        - name: Import Key Vault secrets (Stripe)
+        run: |
+          set -e
+          cd backend/infra/terraform
+          terraform init
+          terraform state rm azurerm_key_vault_secret.stripe_secret_key || true
+          terraform state rm azurerm_key_vault_secret.stripe_webhook_secret || true
+          STRIPE_SECRET_VERSION=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-secret-key" --query "id" -o tsv | awk -F'/' '{print $NF}')
+          STRIPE_SECRET_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key/$STRIPE_SECRET_VERSION"
+          terraform import azurerm_key_vault_secret.stripe_secret_key "$STRIPE_SECRET_ID"
+          STRIPE_WEBHOOK_VERSION=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-webhook-secret" --query "id" -o tsv | awk -F'/' '{print $NF}')
+          STRIPE_WEBHOOK_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-webhook-secret/$STRIPE_WEBHOOK_VERSION"
+          terraform import azurerm_key_vault_secret.stripe_webhook_secret "$STRIPE_WEBHOOK_ID"
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          PREFIX: ${{ secrets.PREFIX }}
+          
       - name: Terraform Apply
         run: |
           cd backend/infra/terraform
@@ -340,27 +359,4 @@ jobs:
       - name: Check rollout status postgres-exporter
         run: kubectl rollout status deployment/postgres-exporter -n monitoring
 
-      - name: Import Key Vault secrets (Stripe)
-        run: |
-          set -e
-          cd backend/infra/terraform
-          # Supprime du state si déjà présent (évite les conflits d'import)
-          terraform state rm azurerm_key_vault_secret.stripe_secret_key || true
-          terraform state rm azurerm_key_vault_secret.stripe_webhook_secret || true
-
-          # Récupère la version du secret stripe_secret_key
-          STRIPE_SECRET_VERSION=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-secret-key" --query "id" -o tsv | awk -F'/' '{print $NF}')
-          STRIPE_SECRET_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key/$STRIPE_SECRET_VERSION"
-          terraform import azurerm_key_vault_secret.stripe_secret_key "$STRIPE_SECRET_ID"
-
-          # Même chose pour stripe_webhook_secret
-          STRIPE_WEBHOOK_VERSION=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-webhook-secret" --query "id" -o tsv | awk -F'/' '{print $NF}')
-          STRIPE_WEBHOOK_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-webhook-secret/$STRIPE_WEBHOOK_VERSION"
-          terraform import azurerm_key_vault_secret.stripe_webhook_secret "$STRIPE_WEBHOOK_ID"
-        env:
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          PREFIX: ${{ secrets.PREFIX }}
-
+    
