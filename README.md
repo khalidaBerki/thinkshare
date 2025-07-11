@@ -1,3 +1,8 @@
+## **Accéder à l'application**
+
+[ThinkShare](https://thinkshare-app.web.app/) — cliquez ici pour découvrir l'application en ligne !
+
+
 # **Résumé du projet Thinkshare**
 
 **Thinkshare** est une **plateforme sociale académique** innovante qui révolutionne le partage de savoir.
