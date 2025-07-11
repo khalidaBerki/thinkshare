@@ -221,11 +221,12 @@ jobs:
             azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
       - name: Import Key Vault secrets (Stripe)
         run: |
-          set -e
+          set +e
           cd backend/infra/terraform
           terraform init
           terraform state rm azurerm_key_vault_secret.stripe_secret_key || true
           terraform state rm azurerm_key_vault_secret.stripe_webhook_secret || true
+          set -e
           STRIPE_SECRET_VERSION=$(az keyvault secret show --vault-name "${{ secrets.PREFIX }}-kv" --name "stripe-secret-key" --query "id" -o tsv | awk -F'/' '{print $NF}')
           STRIPE_SECRET_ID="https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key/$STRIPE_SECRET_VERSION"
           terraform import azurerm_key_vault_secret.stripe_secret_key "$STRIPE_SECRET_ID"
