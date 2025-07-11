@@ -6,18 +6,38 @@ import 'package:go_router/go_router.dart';
 class AuthProvider extends ChangeNotifier {
   final AuthApi _authApi = AuthApi();
 
+  int? _userId;
+  int? get userId => _userId;
+
   Future<void> login(
     String email,
     String password,
     BuildContext context,
   ) async {
     try {
-      final token = await _authApi.login(email, password);
-      debugPrint('Token: $token');
+      // On suppose que _authApi.login renvoie { "token": "...", "user_id": 42 }
+      final response = await _authApi.login(email, password);
+      debugPrint('Login response: $response');
 
-      // ✅ Save token
+      final token = response['token'];
+      final userIdRaw = response['user_id'];
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
+
+      int? userId;
+      if (userIdRaw is int) {
+        userId = userIdRaw;
+      } else if (userIdRaw is String) {
+        userId = int.tryParse(userIdRaw);
+      }
+
+      if (userId != null) {
+        _userId = userId;
+        await prefs.setInt('user_id', _userId!);
+      }
+
+      notifyListeners();
 
       if (!context.mounted) return;
       context.go('/home');
@@ -53,5 +73,11 @@ class AuthProvider extends ChangeNotifier {
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('auth_token');
+  }
+
+  Future<void> loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    _userId = prefs.getInt('user_id');
+    notifyListeners();
   }
 }

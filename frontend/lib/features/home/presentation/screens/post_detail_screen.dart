@@ -244,7 +244,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      if (mediaUrls.isNotEmpty) MediaCarousel(mediaUrls: mediaUrls),
+                      if (mediaUrls.isNotEmpty)
+                        MediaCarousel(mediaUrls: mediaUrls),
                     ],
                     const SizedBox(height: 20),
                     Row(
@@ -258,7 +259,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         ),
                         Text('$likeCount'),
                         const SizedBox(width: 16),
-                        Icon(Icons.mode_comment_outlined, color: colorScheme.primary),
+                        Icon(
+                          Icons.mode_comment_outlined,
+                          color: colorScheme.primary,
+                        ),
                         const SizedBox(width: 4),
                         Text('${post!['comment_count'] ?? 0}'),
                       ],

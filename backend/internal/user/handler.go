@@ -54,7 +54,7 @@ func GetProfileHandler(c *gin.Context) {
 func UpdateProfileHandler(c *gin.Context) {
 	var input UpdateUserInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Entrée invalide"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry"})
 		return
 	}
 
@@ -66,7 +66,7 @@ func UpdateProfileHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Profil mis à jour avec succès"})
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 }
 
 // GetUserProfileHandler godoc
@@ -82,13 +82,13 @@ func UpdateProfileHandler(c *gin.Context) {
 func GetUserProfileHandler(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID utilisateur invalide"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
 	user, err := GetProfile(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Utilisateur non trouvé"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 

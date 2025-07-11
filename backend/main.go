@@ -198,6 +198,9 @@ func main() {
 	// Endpoint pour les métriques Prometheus (toujours accessible)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
+	// Servir les fichiers statiques du dossier uploads
+	r.Static("/uploads", "./uploads")
+
 	// Port dynamique
 	port := os.Getenv("PORT")
 	if port == "" {

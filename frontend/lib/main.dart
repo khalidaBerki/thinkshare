@@ -6,6 +6,7 @@ import 'config/app_routes.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/home/presentation/providers/home_provider.dart';
 import 'features/message/presentation/providers/message_provider.dart';
+import 'features/profile/presentation/providers/profile_provider.dart';
 
 void main() {
   runApp(
@@ -15,6 +16,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => HomeProvider()),
         ChangeNotifierProvider(create: (_) => MessageProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
       ],
       child: const MyApp(),
     ),

@@ -4,12 +4,13 @@ import '../../../config/api_config.dart';
 class AuthApi {
   final Dio _dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl));
 
-  Future<String> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await _dio.post(
       '/login',
       data: {'email': email, 'password': password},
     );
-    return response.data['token'];
+    // On retourne tout le JSON (token + user_id)
+    return Map<String, dynamic>.from(response.data);
   }
 
   Future<void> register({

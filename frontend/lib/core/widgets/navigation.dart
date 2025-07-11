@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/home/presentation/screens/feed_screen.dart';
 import '../../features/home/presentation/screens/create_post_screen.dart';
 import '../../features/message/presentation/screens/conversation_list_screen.dart';
-//import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/my_profile_screen.dart';
 
 class NavigationScreen extends StatefulWidget {
   final int tabIndex;
@@ -88,7 +88,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
           FeedScreen(),
           CreatePostScreen(),
           ConversationListScreen(),
-          // ProfileScreen(),
+          MyProfileScreen(),
         ],
       ),
     );
