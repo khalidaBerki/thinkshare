@@ -366,35 +366,14 @@ jobs:
       - name: Import Stripe Secret Key (manuellement si besoin)
         run: |
           cd backend/infra/terraform
-          # Remplacez l'URL par celle avec la version si besoin
           terraform import \
-            -var="db_admin=${{ secrets.DB_ADMIN }}" \
-            -var="db_name=${{ secrets.DB_NAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-            -var="pg_host=${{ secrets.PG_HOST }}" \
-            -var="pg_port=${{ secrets.PG_PORT }}" \
-            -var="gin_mode=${{ secrets.GIN_MODE }}" \
-            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
-            -var="location=${{ secrets.LOCATION }}" \
-            -var="prefix=${{ secrets.PREFIX }}" \
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_key_vault_secret.stripe_secret_key "https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key/<version>"
+            azurerm_key_vault_secret.stripe_secret_key "https://pec2-kv.vault.azure.net/secrets/stripe-secret-key/acbe9936e73f44a28e7c78b59e4cbbe3"
       - name: Import Stripe Webhook Secret (manuellement si besoin)
         run: |
           cd backend/infra/terraform
           terraform import \
-            -var="db_admin=${{ secrets.DB_ADMIN }}" \
-            -var="db_name=${{ secrets.DB_NAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-            -var="pg_host=${{ secrets.PG_HOST }}" \
-            -var="pg_port=${{ secrets.PG_PORT }}" \
-            -var="gin_mode=${{ secrets.GIN_MODE }}" \
-            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
-            -var="location=${{ secrets.LOCATION }}" \
-            -var="prefix=${{ secrets.PREFIX }}" \
             -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
             -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_key_vault_secret.stripe_webhook_secret "https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-webhook-secret/<version>"
+            azurerm_key_vault_secret.stripe_webhook_secret "https://pec2-kv.vault.azure.net/secrets/stripe-webhook-secret/ea621fb632664d78b9fcead590f0c051"
