@@ -223,40 +223,12 @@ jobs:
             azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
 
       - name: Terraform Import Stripe Secret Key
-        run: |
-          cd backend/infra/terraform
-          terraform import \
-            -var="db_admin=${{ secrets.DB_ADMIN }}" \
-            -var="db_name=${{ secrets.DB_NAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-            -var="pg_host=${{ secrets.PG_HOST }}" \
-            -var="pg_port=${{ secrets.PG_PORT }}" \
-            -var="gin_mode=${{ secrets.GIN_MODE }}" \
-            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
-            -var="location=${{ secrets.LOCATION }}" \
-            -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_key_vault_secret.stripe_secret_key "https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key"
+        if: false  # supprimé, remplacé par le job manuel
+        run: echo "Import Stripe Secret Key déplacé dans le job manuel."
 
       - name: Terraform Import Stripe Webhook Secret
-        run: |
-          cd backend/infra/terraform
-          terraform import \
-            -var="db_admin=${{ secrets.DB_ADMIN }}" \
-            -var="db_name=${{ secrets.DB_NAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-            -var="pg_host=${{ secrets.PG_HOST }}" \
-            -var="pg_port=${{ secrets.PG_PORT }}" \
-            -var="gin_mode=${{ secrets.GIN_MODE }}" \
-            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
-            -var="location=${{ secrets.LOCATION }}" \
-            -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_key_vault_secret.stripe_webhook_secret "https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-webhook-secret"
+        if: false  # supprimé, remplacé par le job manuel
+        run: echo "Import Stripe Webhook Secret déplacé dans le job manuel."
 
       - name: Terraform Apply
         run: |
@@ -375,3 +347,54 @@ jobs:
 
       - name: Check rollout status postgres-exporter
         run: kubectl rollout status deployment/postgres-exporter -n monitoring
+
+  terraform-import-secrets:
+    name: Import Key Vault Secrets (optionnel)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+      - name: Terraform Init
+        run: cd backend/infra/terraform && terraform init
+      - name: Import Stripe Secret Key (manuellement si besoin)
+        run: |
+          cd backend/infra/terraform
+          # Remplacez l'URL par celle avec la version si besoin
+          terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
+            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
+            azurerm_key_vault_secret.stripe_secret_key "https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-secret-key/<version>"
+      - name: Import Stripe Webhook Secret (manuellement si besoin)
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="db_admin=${{ secrets.DB_ADMIN }}" \
+            -var="db_name=${{ secrets.DB_NAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="pg_host=${{ secrets.PG_HOST }}" \
+            -var="pg_port=${{ secrets.PG_PORT }}" \
+            -var="gin_mode=${{ secrets.GIN_MODE }}" \
+            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
+            -var="location=${{ secrets.LOCATION }}" \
+            -var="prefix=${{ secrets.PREFIX }}" \
+            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
+            azurerm_key_vault_secret.stripe_webhook_secret "https://${{ secrets.PREFIX }}-kv.vault.azure.net/secrets/stripe-webhook-secret/<version>"
