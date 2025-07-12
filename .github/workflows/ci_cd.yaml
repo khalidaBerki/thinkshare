@@ -68,6 +68,28 @@ jobs:
           go-version: '1.22'
       - name: Install dependencies
         run: cd backend && go mod download
+      - name: Set up PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Initialize test database schema
+        run: psql -h localhost -U $PGUSER -d $PGDATABASE -f backend/docs/schema.sql
+        env:
+          PGPASSWORD: ${{ env.PGPASSWORD }}
+      - name: Create subscriptions table for tests (if not exists)
+        run: |
+          psql -h localhost -U $PGUSER -d $PGDATABASE -c "\
+          CREATE TABLE IF NOT EXISTS subscriptions (\
+            id SERIAL PRIMARY KEY,\
+            subscriber_id INTEGER NOT NULL,\
+            creator_id INTEGER NOT NULL,\
+            start_date TIMESTAMP NOT NULL,\
+            end_date TIMESTAMP NOT NULL,\
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,\
+            type VARCHAR(50) NOT NULL,\
+            stripe_subscription_id VARCHAR(255)\
+          );\
+          "
+        env:
+          PGPASSWORD: ${{ env.PGPASSWORD }}
       - name: Debug env
         run: env | grep PG
       - name: Run integration tests
