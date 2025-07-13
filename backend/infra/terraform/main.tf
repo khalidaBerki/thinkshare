@@ -108,8 +108,30 @@ variable "key_vault_sku" {
   default     = "standard"
 }
 
+variable "stripe_secret_key" {
+  description = "Clé secrète Stripe"
+  type        = string
+}
+
+variable "stripe_webhook_secret" {
+  description = "Clé secrète du webhook Stripe"
+  type        = string
+}
+
 output "aks_node_public_ip" {
   description = "IP publique du nœud AKS pour accès à Swagger via NodePort"
   value = azurerm_kubernetes_cluster.aks.default_node_pool[0].node_public_ip_prefix_id
   # Note : Pour obtenir l'IP publique réelle, il faudra utiliser 'kubectl get nodes -o wide' après déploiement
+}
+
+resource "azurerm_key_vault_secret" "stripe_secret_key" {
+  name         = "stripe-secret-key"
+  value        = var.stripe_secret_key
+  key_vault_id = azurerm_key_vault.vault.id
+}
+
+resource "azurerm_key_vault_secret" "stripe_webhook_secret" {
+  name         = "stripe-webhook-secret"
+  value        = var.stripe_webhook_secret
+  key_vault_id = azurerm_key_vault.vault.id
 }

@@ -6,6 +6,8 @@ import '../../../../config/api_config.dart';
 import 'package:provider/provider.dart';
 import '../../presentation/providers/home_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../services/payment_service.dart';
+import 'upgrade_banner.dart';
 
 class PostCard extends StatelessWidget {
   final Map<String, dynamic> post;
@@ -19,10 +21,16 @@ class PostCard extends StatelessWidget {
     final isPrivate = post['visibility'] == 'private';
     final colorScheme = Theme.of(context).colorScheme;
     final postId = post['id'].toString();
+    final hasAccess = post['has_access'] == true;
+    final isPaidOnly = post['is_paid_only'] == true;
+    final monthlyPrice = creator['monthly_price'];
+    final username = creator['username'];
     final currentUserId = Provider.of<AuthProvider>(
       context,
       listen: false,
     ).userId;
+
+    print('hasAccess=$hasAccess, isPaidOnly=$isPaidOnly, monthlyPrice=$monthlyPrice, username=$username');
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -121,8 +129,12 @@ class PostCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (isPrivate)
-                    _PrivatePostBanner()
+                  if (!hasAccess && isPaidOnly && monthlyPrice != null && monthlyPrice > 0)
+                    UpgradeBanner(
+                      creatorId: creator['id'],
+                      monthlyPrice: monthlyPrice is num ? monthlyPrice.toDouble() : null,
+                      username: username,
+                    )
                   else ...[
                     if ((post['content'] ?? '').isNotEmpty)
                       Padding(
@@ -245,50 +257,5 @@ class PostCard extends StatelessWidget {
     final date = DateTime.tryParse(iso);
     if (date == null) return '';
     return '${date.day}/${date.month}/${date.year}';
-  }
-}
-
-class _PrivatePostBanner extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.error.withOpacity(0.08),
-        border: Border.all(color: colorScheme.error),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        children: [
-          Text(
-            "To view this private post, you must upgrade to premium",
-            style: TextStyle(
-              color: colorScheme.error,
-              fontFamily: 'Montserrat',
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.error,
-              foregroundColor: colorScheme.onError,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-            ),
-            onPressed: () {
-              // TODO: Upgrade action
-            },
-            child: const Text("Upgrade to premium"),
-          ),
-        ],
-      ),
-    );
   }
 }

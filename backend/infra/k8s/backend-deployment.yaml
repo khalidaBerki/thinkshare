@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: thinkshare-backend
-        image: khalidaber/thinkshare-backend:v1.2
+        image: khalidaber/thinkshare-backend:v1.6
         ports:
         - containerPort: 8080
         env:
@@ -51,6 +51,33 @@ spec:
               key: db_password
         - name: PGSSLMODE
           value: "require"
+        - name: STRIPE_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: stripe_webhook_secret
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: stripe_secret_key
+        - name: STRIPE_SUCCESS_URL
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: stripe_success_url
+        - name: STRIPE_CANCEL_URL
+          valueFrom:
+            secretKeyRef:
+              name: thinkshare-secrets
+              key: stripe_cancel_url
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "thinkshare-secrets"
 ---
 apiVersion: v1
 kind: Service

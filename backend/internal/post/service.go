@@ -68,6 +68,7 @@ func (s *service) CreatePost(creatorID uint, input CreatePostInput) (*PostDTO, e
 		CreatorID:    creatorID,
 		Content:      strings.TrimSpace(input.Content),
 		Visibility:   input.Visibility,
+		IsPaidOnly:   input.IsPaidOnly,
 		DocumentType: input.DocumentType,
 		Media:        input.Media,
 	}
@@ -91,6 +92,15 @@ func (s *service) GetPostByID(id, userID uint) (*PostDTO, error) {
 
 	dto := postsDTO[0]
 	removeDuplicateMediaURLs(dto) // ✅
+
+	// Vérifier l'accès au contenu
+	hasAccess := CheckPostAccess(userID, post.CreatorID, post.IsPaidOnly)
+	dto.HasAccess = hasAccess
+	dto.IsPaidOnly = post.IsPaidOnly
+
+	if !hasAccess {
+		dto.Content = "🔒 Ce contenu est réservé aux abonnés payants. Abonnez-vous pour y accéder !"
+	}
 
 	creator, err := s.repo.GetCreatorInfo(post.CreatorID)
 	if err == nil {
@@ -129,8 +139,28 @@ func (s *service) GetAllPosts(page, limit int, userID uint) ([]*PostDTO, int64, 
 		return nil, 0, errors.New("erreur lors de la récupération des statistiques")
 	}
 
+	// Appliquer le contrôle d'accès pour tous les posts
 	for _, dto := range postsDTO {
 		removeDuplicateMediaURLs(dto) // ✅
+
+		// Trouver le post original pour récupérer IsPaidOnly
+		var originalPost *Post
+		for _, p := range posts {
+			if p.ID == dto.ID {
+				originalPost = p
+				break
+			}
+		}
+
+		if originalPost != nil {
+			hasAccess := CheckPostAccess(userID, originalPost.CreatorID, originalPost.IsPaidOnly)
+			dto.HasAccess = hasAccess
+			dto.IsPaidOnly = originalPost.IsPaidOnly
+
+			if !hasAccess {
+				dto.Content = "🔒 Ce contenu est réservé aux abonnés payants. Abonnez-vous pour y accéder !"
+			}
+		}
 	}
 
 	return postsDTO, total, nil
@@ -159,8 +189,28 @@ func (s *service) GetPostsByCreator(creatorID uint, page, limit int, userID uint
 		return nil, 0, errors.New("erreur lors de la récupération des statistiques")
 	}
 
+	// Appliquer le contrôle d'accès pour tous les posts
 	for _, dto := range postsDTO {
 		removeDuplicateMediaURLs(dto) // ✅
+
+		// Trouver le post original pour récupérer IsPaidOnly
+		var originalPost *Post
+		for _, p := range posts {
+			if p.ID == dto.ID {
+				originalPost = p
+				break
+			}
+		}
+
+		if originalPost != nil {
+			hasAccess := CheckPostAccess(userID, originalPost.CreatorID, originalPost.IsPaidOnly)
+			dto.HasAccess = hasAccess
+			dto.IsPaidOnly = originalPost.IsPaidOnly
+
+			if !hasAccess {
+				dto.Content = "🔒 Ce contenu est réservé aux abonnés payants. Abonnez-vous pour y accéder !"
+			}
+		}
 	}
 
 	return postsDTO, total, nil

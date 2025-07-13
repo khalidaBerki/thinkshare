@@ -84,6 +84,10 @@ func (h *Handler) CreatePost(c *gin.Context) {
 	content := getFirst(form.Value, "content")
 	visibility := getFirst(form.Value, "visibility")
 	documentType := getFirst(form.Value, "document_type")
+	isPaidOnlyStr := getFirst(form.Value, "is_paid_only")
+
+	// Convertir is_paid_only en booléen
+	isPaidOnly := isPaidOnlyStr == "true"
 
 	images := form.File["images"]
 	videos := form.File["video"]
@@ -172,6 +176,7 @@ func (h *Handler) CreatePost(c *gin.Context) {
 	input := CreatePostInput{
 		Content:      content,
 		Visibility:   Visibility(visibility),
+		IsPaidOnly:   isPaidOnly,
 		DocumentType: documentType,
 		Media:        medias,
 	}

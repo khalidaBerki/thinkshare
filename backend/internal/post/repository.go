@@ -207,6 +207,7 @@ func (r *repository) GetPostsWithStats(posts []*Post, userID uint) ([]*PostDTO, 
 			CreatorID:    post.CreatorID,
 			Content:      post.Content,
 			Visibility:   string(post.Visibility),
+			IsPaidOnly:   post.IsPaidOnly, // <-- Ajouté pour le mapping correct
 			DocumentType: post.DocumentType,
 			CreatedAt:    post.CreatedAt,
 			UpdatedAt:    post.UpdatedAt,
@@ -230,10 +231,11 @@ func (r *repository) GetCreatorInfo(userID uint) (*CreatorInfo, error) {
 		return nil, err
 	}
 	return &CreatorInfo{
-		ID:        user.ID,
-		Username:  user.Username,
-		FullName:  user.FullName,
-		AvatarURL: user.AvatarURL,
+		ID:           user.ID,
+		Username:     user.Username,
+		FullName:     user.FullName,
+		AvatarURL:    user.AvatarURL,
+		MonthlyPrice: user.MonthlyPrice, // Ajout pour le feed Flutter
 	}, nil
 }
 

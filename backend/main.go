@@ -154,7 +154,6 @@ func main() {
 
 	// Route publique pour le webhook Stripe (avant les routes protégées)
 	r.POST("/api/payment/webhook", payment.StripeWebhookHandler)
-
 	// 🔐 Routes API protégées
 	api := r.Group("/api", auth.AuthMiddleware())
 	{
@@ -163,6 +162,9 @@ func main() {
 		api.PUT("/profile", user.UpdateProfileHandler)
 		api.GET("/users/:id", user.GetUserProfileHandler)
 		api.POST("/subscribe", subscription.SubscribeHandler)
+		// 💳 Routes paiement Stripe (abonnement payant, one-shot, webhook)
+		api.POST("/subscribe/paid", subscription.SubscribePaidStripeHandler) // Crée une session Stripe pour abonnement
+
 		api.POST("/unsubscribe", subscription.UnsubscribeHandler)
 		api.GET("/followers/:id", subscription.GetFollowersByUserHandler)
 		api.GET("/subscriptions", subscription.GetMySubscriptionsHandler)

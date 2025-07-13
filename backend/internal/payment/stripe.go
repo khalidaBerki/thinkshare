@@ -1,6 +1,7 @@
 package payment
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/stripe/stripe-go/v78"
@@ -11,6 +12,7 @@ import (
 
 func InitStripe() {
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+	fmt.Println("Stripe key loaded:", stripe.Key)
 }
 
 // CreateStripeCheckoutSession crée une session de paiement Stripe et retourne l'URL
