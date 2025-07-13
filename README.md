@@ -1,6 +1,8 @@
 ## **Accéder à l'application**
 
-[ThinkShare](https://thinkshare-app.web.app/) — cliquez ici pour découvrir l'application en ligne !
+[ThinkShare](https://thinkshare-app.web.app/) — cliquez ici pour découvrir l'application en ligne en version web !
+
+[apk](https://thinkshare-apk.vercel.app/app-release.apk) - cliquez ici pour télécharger l'application apk sur votre android
 
 
 # **Résumé du projet Thinkshare**
