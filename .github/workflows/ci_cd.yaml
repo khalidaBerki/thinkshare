@@ -5,6 +5,7 @@ on:
     branches: [ feature/abonnement, main ]
   pull_request:
     branches: [ main,feature/abonnement]
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -223,12 +224,19 @@ jobs:
             azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
 
       - name: Terraform Import Stripe Secret Key
-        if: false  # supprimé, remplacé par le job manuel
-        run: echo "Import Stripe Secret Key déplacé dans le job manuel."
-
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
+            azurerm_key_vault_secret.stripe_secret_key "https://pec2-kv.vault.azure.net/secrets/stripe-secret-key/acbe9936e73f44a28e7c78b59e4cbbe3"
       - name: Terraform Import Stripe Webhook Secret
-        if: false  # supprimé, remplacé par le job manuel
-        run: echo "Import Stripe Webhook Secret déplacé dans le job manuel."
+        run: |
+          cd backend/infra/terraform
+          terraform import \
+            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
+            azurerm_key_vault_secret.stripe_webhook_secret "https://pec2-kv.vault.azure.net/secrets/stripe-webhook-secret/ea621fb632664d78b9fcead590f0c051"
 
       - name: Terraform Apply
         run: |
