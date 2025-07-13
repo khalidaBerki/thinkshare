@@ -151,93 +151,44 @@ jobs:
       - name: Terraform Init
         run: cd backend/infra/terraform && terraform init
 
+      - name: Export Terraform variables
+        run: |
+          export TF_VAR_db_admin="${{ secrets.DB_ADMIN }}"
+          export TF_VAR_db_name="${{ secrets.DB_NAME }}"
+          export TF_VAR_db_password="${{ secrets.DB_PASSWORD }}"
+          export TF_VAR_jwt_secret="${{ secrets.JWT_SECRET }}"
+          export TF_VAR_pg_host="${{ secrets.PG_HOST }}"
+          export TF_VAR_pg_port="${{ secrets.PG_PORT }}"
+          export TF_VAR_gin_mode="${{ secrets.GIN_MODE }}"
+          export TF_VAR_key_vault_sku="${{ secrets.KEY_VAULT_SKU }}"
+          export TF_VAR_location="${{ secrets.LOCATION }}"
+          export TF_VAR_prefix="${{ secrets.PREFIX }}"
+          export TF_VAR_stripe_secret_key="${{ secrets.STRIPE_SECRET_KEY }}"
+          export TF_VAR_stripe_webhook_secret="${{ secrets.STRIPE_WEBHOOK_SECRET }}"
       - name: Terraform Import Resource Group
         run: |
           cd backend/infra/terraform
-          terraform import \
-            -var="db_admin=${{ secrets.DB_ADMIN }}" \
-            -var="db_name=${{ secrets.DB_NAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-            -var="pg_host=${{ secrets.PG_HOST }}" \
-            -var="pg_port=${{ secrets.PG_PORT }}" \
-            -var="gin_mode=${{ secrets.GIN_MODE }}" \
-            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
-            -var="location=${{ secrets.LOCATION }}" \
-            -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources
-
+          terraform import azurerm_resource_group.rg /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources
       - name: Terraform Import PostgreSQL Flexible Server
         run: |
           cd backend/infra/terraform
-          terraform import \
-            -var="db_admin=${{ secrets.DB_ADMIN }}" \
-            -var="db_name=${{ secrets.DB_NAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-            -var="pg_host=${{ secrets.PG_HOST }}" \
-            -var="pg_port=${{ secrets.PG_PORT }}" \
-            -var="gin_mode=${{ secrets.GIN_MODE }}" \
-            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
-            -var="location=${{ secrets.LOCATION }}" \
-            -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
-
+          terraform import azurerm_postgresql_flexible_server.db /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/pec2/providers/Microsoft.DBforPostgreSQL/flexibleServers/pec-2
       - name: Terraform Import Key Vault
         run: |
           cd backend/infra/terraform
-          terraform import \
-            -var="db_admin=${{ secrets.DB_ADMIN }}" \
-            -var="db_name=${{ secrets.DB_NAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-            -var="pg_host=${{ secrets.PG_HOST }}" \
-            -var="pg_port=${{ secrets.PG_PORT }}" \
-            -var="gin_mode=${{ secrets.GIN_MODE }}" \
-            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
-            -var="location=${{ secrets.LOCATION }}" \
-            -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv
-
+          terraform import azurerm_key_vault.vault /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.KeyVault/vaults/${{ secrets.PREFIX }}-kv
       - name: Terraform Import AKS Cluster
         run: |
           cd backend/infra/terraform
-          terraform import \
-            -var="db_admin=${{ secrets.DB_ADMIN }}" \
-            -var="db_name=${{ secrets.DB_NAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-            -var="pg_host=${{ secrets.PG_HOST }}" \
-            -var="pg_port=${{ secrets.PG_PORT }}" \
-            -var="gin_mode=${{ secrets.GIN_MODE }}" \
-            -var="key_vault_sku=${{ secrets.KEY_VAULT_SKU }}" \
-            -var="location=${{ secrets.LOCATION }}" \
-            -var="prefix=${{ secrets.PREFIX }}" \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
-
+          terraform import azurerm_kubernetes_cluster.aks /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/MonGroupeRessources/providers/Microsoft.ContainerService/managedClusters/${{ secrets.PREFIX }}-aks
       - name: Terraform Import Stripe Secret Key
         run: |
           cd backend/infra/terraform
-          terraform import \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_key_vault_secret.stripe_secret_key "https://pec2-kv.vault.azure.net/secrets/stripe-secret-key/acbe9936e73f44a28e7c78b59e4cbbe3"
+          terraform import azurerm_key_vault_secret.stripe_secret_key "https://pec2-kv.vault.azure.net/secrets/stripe-secret-key/acbe9936e73f44a28e7c78b59e4cbbe3"
       - name: Terraform Import Stripe Webhook Secret
         run: |
           cd backend/infra/terraform
-          terraform import \
-            -var="stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var="stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            azurerm_key_vault_secret.stripe_webhook_secret "https://pec2-kv.vault.azure.net/secrets/stripe-webhook-secret/ea621fb632664d78b9fcead590f0c051"
-
+          terraform import azurerm_key_vault_secret.stripe_webhook_secret "https://pec2-kv.vault.azure.net/secrets/stripe-webhook-secret/ea621fb632664d78b9fcead590f0c051"
       - name: Terraform Apply
         run: |
           cd backend/infra/terraform
